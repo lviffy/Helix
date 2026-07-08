@@ -1,0 +1,13 @@
+{
+  "name": "@helix/database",
+  "version": "1.0.0",
+  "main": "client.ts",
+  "types": "types.ts",
+  "dependencies": {
+    "drizzle-orm": "^0.30.0",
+    "postgres": "^3.4.4"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.21.0"
+  }
+}

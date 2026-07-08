@@ -1,0 +1,9 @@
+{
+  "name": "@helix/ai",
+  "version": "1.0.0",
+  "main": "client.ts",
+  "dependencies": {
+    "@google/genai": "latest",
+    "zod": "^3.22.4"
+  }
+}

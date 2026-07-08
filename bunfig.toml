@@ -1,0 +1,4 @@
+# Configures Bun behavior for the monorepo
+[install]
+# Allow installing with workspace protocol
+dependency-packager = true
