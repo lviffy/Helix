@@ -1,5 +1,5 @@
 import { db } from '@helix/database/client';
-import { intents, tasks, bids, auditLogs, users } from '@helix/database/schema';
+import { intents, tasks, bids, auditLogs, users, agents } from '@helix/database/schema';
 import { eq } from 'drizzle-orm';
 import { parseIntent, planExecution, explainExecution } from '@helix/ai';
 import { getAgentBids } from '../agents/mockSpecialists';
@@ -66,8 +66,19 @@ export async function processUserIntent(
 
   await logAudit(dbIntent.id, 'intent_received', { parsedIntent });
 
+  return executeIntent(dbIntent, rawIntentPrompt);
+}
+
+export async function executeIntent(
+  dbIntent: any,
+  rawIntentPrompt: string
+): Promise<ProcessIntentResult> {
   // 4. AI Planning (DAG Plan)
-  const executionPlan = await planExecution(parsedIntent);
+  const executionPlan = await planExecution({
+    type: dbIntent.type,
+    goal: dbIntent.goal,
+    policies: dbIntent.policies,
+  } as any);
   console.log(`✅ Plan output: ${JSON.stringify(executionPlan, null, 2)}`);
 
   await logAudit(dbIntent.id, 'plan_generated', { executionPlan });
@@ -233,6 +244,9 @@ export async function processUserIntent(
           txHash: refundTxHash,
         });
 
+        // Update agent stats on failure
+        await updateAgentStats(selectedAgentId, false, 0);
+
         // Remove failed agent from list of valid options
         const failedIndex = evaluatedBidsList.findIndex((e) => e.agentId === selectedAgentId);
         if (failedIndex !== -1) {
@@ -286,6 +300,9 @@ export async function processUserIntent(
           txHash,
         }).where(eq(tasks.id, task.id));
 
+        // Update agent stats on success
+        await updateAgentStats(selectedAgentId, true, parseFloat(currentBid.feeUsd || '0'));
+
         finalLogs.push({
           taskName: task.name,
           agentId: selectedAgentId,
@@ -333,4 +350,33 @@ async function logAudit(intentId: string, eventName: string, details: Record<str
     event: eventName,
     details,
   });
+}
+
+async function updateAgentStats(agentId: string, success: boolean, volumeUsd: number) {
+  try {
+    const agent = await db.query.agents.findFirst({
+      where: eq(agents.id, agentId),
+    });
+
+    if (!agent) return;
+
+    const rep = parseFloat(agent.reputationScore);
+    const rate = parseFloat(agent.successRatePct);
+    const vol = parseFloat(agent.totalVolumeUsd);
+
+    let newRep = success ? Math.min(100, rep + 0.5) : Math.max(0, rep - 5.0);
+    let newRate = success ? Math.min(100, rate + 0.1) : Math.max(0, rate - 2.0);
+    let newVol = vol + volumeUsd;
+
+    await db.update(agents).set({
+      reputationScore: newRep.toFixed(2),
+      successRatePct: newRate.toFixed(2),
+      totalVolumeUsd: newVol.toFixed(2),
+      updatedAt: new Date(),
+    }).where(eq(agents.id, agentId));
+
+    console.log(`📈 Updated stats for agent ${agentId}: Rep=${newRep.toFixed(2)}, Vol=$${newVol.toFixed(2)}`);
+  } catch (err) {
+    console.error('Error updating agent stats:', err);
+  }
 }

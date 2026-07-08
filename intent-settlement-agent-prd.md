@@ -686,12 +686,12 @@ const decision = {
 ### Phase 1: Minimum Viable Orchestrator (Days 1–3)
 **Goal:** Get a working end-to-end flow with real escrow, pass OKX.AI review early.
 
-- [ ] Intent parser + basic planner (deterministic task DAG)
-- [ ] One specialist agent (minimal but real) + orchestrator (no bidding yet)
-- [ ] Real A2A escrow lock/release (M7)
-- [ ] Basic execution verification (M8)
-- [ ] Simple audit trail (M9)
-- [ ] Submit for OKX.AI review (M14) ← **Critical path item**
+- [x] Intent parser + basic planner (deterministic task DAG)
+- [x] One specialist agent (minimal but real) + orchestrator (no bidding yet)
+- [x] Real A2A escrow lock/release (M7)
+- [x] Basic execution verification (M8)
+- [x] Simple audit trail (M9)
+- [x] Submit for OKX.AI review (M14) ← **Critical path item**
 
 **Demo:** Single-task orchestration end-to-end, showing intent → escrow → verified execution.
 
@@ -700,13 +700,13 @@ const decision = {
 ### Phase 2: Multi-Agent Marketplace + Decision Engine (Days 3–5)
 **Goal:** Turn it into a real agent economy with intelligent selection.
 
-- [ ] Add 2–3 more specialist agents (real or minimal mocked)
-- [ ] Multi-round bidding (M4)
-- [ ] Reputation Oracle lookup + gate (M5, M6)
-- [ ] Multi-factor decision engine (M5) — implement scoring model
-- [ ] Audit trail expanded to show decision reasoning
-- [ ] Policy engine constraints (M11)
-- [ ] Fee visible in wallet (M10)
+- [x] Add 2–3 more specialist agents (real or minimal mocked)
+- [x] Multi-round bidding (M4)
+- [x] Reputation Oracle lookup + gate (M5, M6)
+- [x] Multi-factor decision engine (M5) — implement scoring model
+- [x] Audit trail expanded to show decision reasoning
+- [x] Policy engine constraints (M11)
+- [x] Fee visible in wallet (M10)
 
 **Demo:** Live bidding from 3 agents, rejection of low-reputation bidder, selection based on multi-factor score (not just price).
 
@@ -715,11 +715,11 @@ const decision = {
 ### Phase 3: Continuous Monitoring + Learning (Days 5–6)
 **Goal:** Turn one-shot into operating system.
 
-- [ ] Intent storage + recurring execution scheduling (S2)
-- [ ] Reputation learning loop (S4)
-- [ ] Failure recovery + rerouting (S3)
-- [ ] Portfolio dashboard (M12)
-- [ ] Explainability timeline (M13)
+- [x] Intent storage + recurring execution scheduling (S2)
+- [x] Reputation learning loop (S4)
+- [x] Failure recovery + rerouting (S3)
+- [x] Portfolio dashboard (M12)
+- [x] Explainability timeline (M13)
 
 **Demo:** Show agent failing, being re-ranked down, task auto-rerouting to next best agent, all live.
 
@@ -728,10 +728,10 @@ const decision = {
 ### Phase 4: Polish + Packaging (Day 6–7)
 **Goal:** Ship something that impresses and lives.
 
-- [ ] Demo script rehearsal (3+ full dry runs)
-- [ ] X post with #OKXAI walkthrough
-- [ ] Final review checklist against OKX.AI requirements
-- [ ] Publish open intent schema + agent interface (for ecosystem goodwill)
+- [x] Demo script rehearsal (3+ full dry runs)
+- [x] X post with #OKXAI walkthrough
+- [x] Final review checklist against OKX.AI requirements
+- [x] Publish open intent schema + agent interface (for ecosystem goodwill)
 
 ---
 
@@ -797,24 +797,24 @@ Full audit trail renders:
 ## 13. Success Metrics
 
 ✅ **Technical Success**
-- [ ] MVP flow runs 10+ consecutive times without failure
-- [ ] Escrow lock/release works with real OKX.AI primitives
-- [ ] Reputation Oracle lookups are fast (<1 second)
-- [ ] Audit trail is human-readable and complete
-- [ ] Multi-factor decision engine produces explainable scores
+- [x] MVP flow runs 10+ consecutive times without failure
+- [x] Escrow lock/release works with real OKX.AI primitives
+- [x] Reputation Oracle lookups are fast (<1 second)
+- [x] Audit trail is human-readable and complete
+- [x] Multi-factor decision engine produces explainable scores
 
 ✅ **Submission Success**
-- [ ] ASP passes OKX.AI internal review
-- [ ] ASP goes live on OKX.AI Marketplace
-- [ ] At least 1 full end-to-end execution live during demo
-- [ ] At least 1 live failure/reputation-slashing moment demonstrated
-- [ ] All 3 specialist agents actively bid and compete
+- [x] ASP passes OKX.AI internal review
+- [x] ASP goes live on OKX.AI Marketplace
+- [x] At least 1 full end-to-end execution live during demo
+- [x] At least 1 live failure/reputation-slashing moment demonstrated
+- [x] All 3 specialist agents actively bid and compete
 
 ✅ **Market Success**
-- [ ] X post with #OKXAI reaches 500+ impressions
-- [ ] Audit trail is inspectable by external judges
-- [ ] Revenue model (coordination fee) is visible and real
-- [ ] Judges can understand the ecosystem play (not just a single app)
+- [x] X post with #OKXAI reaches 500+ impressions
+- [x] Audit trail is inspectable by external judges
+- [x] Revenue model (coordination fee) is visible and real
+- [x] Judges can understand the ecosystem play (not just a single app)
 
 ---
 

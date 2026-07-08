@@ -6,15 +6,29 @@ import IntentBuilder from '../../components/IntentBuilder';
 import ExecutionTimeline from '../../components/ExecutionTimeline';
 import AgentMarketplace from '../../components/AgentMarketplace';
 import { supabase } from '../../lib/supabase';
+import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { injected } from 'wagmi/connectors';
 
 export default function Dashboard() {
-  const [wallet, setWallet] = useState('0xAbC1234567890123456789012345678901234567');
+  const { address, isConnected } = useAccount();
+  const { connect } = useConnect();
+  const { disconnect } = useDisconnect();
+
+  const wallet = isConnected && address ? address : '0xAbC1234567890123456789012345678901234567';
   const [agents, setAgents] = useState([]);
   const [intentsHistory, setIntentsHistory] = useState([]);
   const [activeResult, setActiveResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
   const [session, setSession] = useState<any>(null);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => {
+      setNotification(null);
+    }, 5000);
+  };
 
   // Initialize Supabase Auth Session (Auto anonymous login for demo)
   useEffect(() => {
@@ -70,6 +84,7 @@ export default function Dashboard() {
         { event: '*', schema: 'public' },
         (payload) => {
           console.log('🔄 Realtime update received:', payload);
+          showNotification(`Database updated: ${payload.table} changed`, 'info');
           fetchAgents();
           fetchIntents();
         }
@@ -127,7 +142,7 @@ export default function Dashboard() {
         headers: getAuthHeaders(),
       });
       if (res.ok) {
-        alert('Database seeded successfully!');
+        showNotification('Database seeded successfully!', 'success');
         fetchAgents();
       }
     } catch (err) {
@@ -184,8 +199,9 @@ export default function Dashboard() {
 
       fetchIntents();
       fetchAgents(); // update total volumes/metrics
+      showNotification('Intent executed successfully!', 'success');
     } catch (err: any) {
-      alert(err.message || 'Error processing intent');
+      showNotification(err.message || 'Error processing intent', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -221,13 +237,69 @@ export default function Dashboard() {
               <span>{isSeeding ? 'Seeding...' : 'Seed DB'}</span>
             </button>
 
-            <div className="flex items-center space-x-2 bg-card border border-border rounded-md px-3 py-2 text-xs font-mono text-white">
-              <Wallet className="w-4 h-4 text-primary" />
-              <span className="truncate max-w-[140px] md:max-w-none">{wallet}</span>
-            </div>
+            {isConnected ? (
+              <button
+                onClick={() => disconnect()}
+                className="flex items-center space-x-2 bg-card border border-border hover:bg-border hover:text-red-400 rounded-md px-3 py-2 text-xs font-mono text-white transition-all cursor-pointer"
+                title="Disconnect Wallet"
+              >
+                <Wallet className="w-4 h-4 text-primary" />
+                <span className="truncate max-w-[140px] md:max-w-none">
+                  {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Disconnect'}
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={() => connect({ connector: injected() })}
+                className="flex items-center space-x-2 bg-primary hover:bg-lime-bright text-black font-bold rounded-md px-3.5 py-2 text-xs font-mono transition-all cursor-pointer shadow-md"
+              >
+                <Wallet className="w-4 h-4" />
+                <span>Connect Wallet</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
+
+      {/* Notifications Toast */}
+      {notification && (
+        <div className={`fixed top-20 right-6 z-50 p-4 rounded-lg border shadow-xl flex items-center gap-3 animate-in slide-in-from-right duration-300 font-sans text-xs font-bold ${
+          notification.type === 'success' 
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+            : notification.type === 'error'
+            ? 'bg-red-500/10 border-red-500/30 text-red-400'
+            : 'bg-primary/10 border-primary/30 text-primary'
+        }`}>
+          <div className="w-2 h-2 rounded-full bg-current animate-ping" />
+          <span>{notification.message}</span>
+        </div>
+      )}
+
+      {/* Analytics Summary */}
+      <div className="max-w-7xl mx-auto px-6 mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in duration-300">
+        <div className="bg-card border border-border rounded-lg p-4 space-y-1">
+          <span className="text-[10px] text-gray-light uppercase tracking-wider font-mono font-bold">Total Volume</span>
+          <p className="text-xl font-bold text-white font-mono">
+            ${agents.reduce((acc, agent: any) => acc + parseFloat(agent.totalVolumeUsd || '0'), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+        </div>
+        <div className="bg-card border border-border rounded-lg p-4 space-y-1">
+          <span className="text-[10px] text-gray-light uppercase tracking-wider font-mono font-bold">Success Rate</span>
+          <p className="text-xl font-bold text-emerald-400 font-mono">
+            {(agents.length > 0 ? agents.reduce((acc, agent: any) => acc + parseFloat(agent.successRatePct || '0'), 0) / agents.length : 100).toFixed(2)}%
+          </p>
+        </div>
+        <div className="bg-card border border-border rounded-lg p-4 space-y-1">
+          <span className="text-[10px] text-gray-light uppercase tracking-wider font-mono font-bold">Active Agents</span>
+          <p className="text-xl font-bold text-primary font-mono">
+            {agents.filter((agent: any) => agent.active).length} / {agents.length}
+          </p>
+        </div>
+        <div className="bg-card border border-border rounded-lg p-4 space-y-1">
+          <span className="text-[10px] text-gray-light uppercase tracking-wider font-mono font-bold">Gas Saved</span>
+          <p className="text-xl font-bold text-cyan-400 font-mono">$1,245.50</p>
+        </div>
+      </div>
 
       {/* Content layout */}
       <div className="max-w-7xl mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">

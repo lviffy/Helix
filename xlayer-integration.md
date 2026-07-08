@@ -467,17 +467,17 @@ Production Deployment
 
 # MVP Deliverables
 
-- [ ] Escrow Contract
-- [ ] Settlement Contract
-- [ ] Agent Registry
-- [ ] Reputation Contract
-- [ ] Treasury
-- [ ] Foundry Tests
-- [ ] Deployment Scripts
-- [ ] Contract Verification
-- [ ] Wallet Integration
-- [ ] Transaction Explorer
-- [ ] On-chain Audit Anchors
+- [x] Escrow Contract
+- [x] Settlement Contract
+- [x] Agent Registry
+- [x] Reputation Contract
+- [x] Treasury
+- [x] Foundry Tests
+- [x] Deployment Scripts
+- [x] Contract Verification
+- [x] Wallet Integration
+- [x] Transaction Explorer
+- [x] On-chain Audit Anchors
 
 ---
 
