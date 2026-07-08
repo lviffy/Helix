@@ -4,6 +4,7 @@ import { db } from '@helix/database/client';
 import { intents, agents, auditLogs } from '@helix/database/schema';
 import { eq, desc } from 'drizzle-orm';
 import { processUserIntent } from './orchestrator/core';
+import { authMiddleware } from './middleware/auth';
 
 const app = new Hono();
 
@@ -13,6 +14,9 @@ app.use('*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Protect intents routes
+app.use('/api/intents*', authMiddleware);
 
 app.get('/health', (c) => {
   return c.json({ status: 'ok', service: 'Helix Core Backend API', timestamp: new Date() });

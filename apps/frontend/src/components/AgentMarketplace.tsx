@@ -21,10 +21,10 @@ interface AgentMarketplaceProps {
 
 export default function AgentMarketplace({ agents }: AgentMarketplaceProps) {
   return (
-    <div className="glass-card rounded-2xl p-6 glow-effect relative overflow-hidden">
+    <div className="bg-card border border-border rounded-lg p-6 relative overflow-hidden">
       <div className="flex items-center space-x-2 mb-6">
-        <Users className="w-5 h-5 text-cyan-400" />
-        <h2 className="text-xl font-bold tracking-tight text-white glow-text">Agent Marketplace Leaderboard</h2>
+        <Users className="w-5 h-5 text-primary" />
+        <h2 className="text-base font-bold tracking-tight text-white">Agent Marketplace Leaderboard</h2>
       </div>
 
       <div className="space-y-4">
@@ -36,36 +36,36 @@ export default function AgentMarketplace({ agents }: AgentMarketplaceProps) {
           return (
             <div
               key={agent.id}
-              className="p-4 bg-gray-950/60 border border-gray-900 hover:border-gray-800 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all"
+              className="p-4 bg-surface-deep border border-border rounded-md flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all"
             >
               {/* Left Rank & Agent Identity */}
               <div className="flex items-center space-x-4">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-sm select-none ${
                   rank === 1 
-                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' 
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono' 
                     : rank === 2 
-                    ? 'bg-slate-300/10 text-slate-300 border border-slate-300/20'
-                    : 'bg-gray-900 text-gray-500'
+                    ? 'bg-slate-300/10 text-slate-300 border border-slate-300/20 font-mono'
+                    : 'bg-surface-muted text-gray-light border border-border font-mono'
                 }`}>
                   #{rank}
                 </div>
                 
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white">{agent.name}</span>
-                    <span className="text-[9px] font-mono text-gray-500">({agent.id})</span>
+                    <span className="text-sm font-bold text-white font-sans">{agent.name}</span>
+                    <span className="text-[9px] font-mono text-gray-light">({agent.id})</span>
                   </div>
                   
                   <div className="flex flex-wrap gap-1.5">
                     {agent.capabilities.map((cap) => (
                       <span
                         key={cap}
-                        className="text-[9px] px-2 py-0.5 rounded-md font-bold uppercase bg-cyan-950/20 text-cyan-400 border border-cyan-500/20"
+                        className="text-[9px] px-2 py-0.5 rounded border border-border font-bold uppercase bg-surface-muted text-primary font-mono"
                       >
                         {cap}
                       </span>
                     ))}
-                    <span className="text-[9px] font-mono text-gray-600 truncate max-w-[100px] md:max-w-none">
+                    <span className="text-[9px] font-mono text-gray-light truncate max-w-[100px] md:max-w-none">
                       {agent.walletAddress}
                     </span>
                   </div>
@@ -75,26 +75,26 @@ export default function AgentMarketplace({ agents }: AgentMarketplaceProps) {
               {/* Right Performance Stats */}
               <div className="grid grid-cols-3 gap-6 text-right">
                 <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-gray-500 uppercase block tracking-wider">Reputation</span>
+                  <span className="text-[9px] font-bold text-gray-light uppercase block tracking-wider font-mono">Reputation</span>
                   <div className="flex items-center justify-end gap-1">
-                    <Star className="w-3 h-3 text-cyan-400 fill-cyan-400/20" />
-                    <span className="text-xs font-bold text-cyan-400">{(repScore).toFixed(1)}%</span>
+                    <Star className="w-3 h-3 text-primary fill-primary/10" />
+                    <span className="text-xs font-bold text-primary font-mono">{(repScore).toFixed(1)}%</span>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-gray-500 uppercase block tracking-wider">Success</span>
+                  <span className="text-[9px] font-bold text-gray-light uppercase block tracking-wider font-mono">Success</span>
                   <div className="flex items-center justify-end gap-1">
                     <Zap className="w-3 h-3 text-emerald-400" />
-                    <span className="text-xs font-bold text-emerald-400">{(successRate).toFixed(1)}%</span>
+                    <span className="text-xs font-bold text-emerald-400 font-mono">{(successRate).toFixed(1)}%</span>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-gray-500 uppercase block tracking-wider">Volume</span>
+                  <span className="text-[9px] font-bold text-gray-light uppercase block tracking-wider font-mono">Volume</span>
                   <div className="flex items-center justify-end gap-1">
-                    <Activity className="w-3 h-3 text-purple-400" />
-                    <span className="text-xs font-bold text-purple-400">
+                    <Activity className="w-3 h-3 text-white" />
+                    <span className="text-xs font-bold text-white font-mono">
                       ${(parseFloat(agent.totalVolumeUsd) / 1000000).toFixed(1)}M
                     </span>
                   </div>

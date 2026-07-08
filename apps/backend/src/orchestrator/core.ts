@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { parseIntent, planExecution, explainExecution } from '@helix/ai';
 import { getAgentBids } from '../agents/mockSpecialists';
 import { evaluateBids } from './decision';
+import { getOnChainReputation, createOnChainEscrow, releaseOnChainEscrow, refundOnChainEscrow } from '../blockchain/blockchainService';
 
 export interface ProcessIntentResult {
   intentId: string;
@@ -117,6 +118,9 @@ export async function processUserIntent(
     // Insert bids into DB
     const insertedBids = [];
     for (const bidVal of mockBids) {
+      const onChainRep = await getOnChainReputation(bidVal.agentId);
+      console.log(`⛓️ Blockchain: Agent ${bidVal.agentId} has on-chain reputation ${onChainRep}%`);
+
       const [insertedBid] = await db.insert(bids).values({
         taskId: task.id,
         agentId: bidVal.agentId,
@@ -125,7 +129,7 @@ export async function processUserIntent(
         confidence: bidVal.confidence.toString(),
         protocolRiskScore: bidVal.protocolRiskScore,
         slippageEstimatedPct: bidVal.slippageEstimatedPct.toString(),
-        reputationScore: bidVal.reputationScore.toString(),
+        reputationScore: onChainRep.toString(),
         status: 'pending',
       }).returning();
       insertedBids.push(insertedBid);
@@ -157,15 +161,10 @@ export async function processUserIntent(
       throw new Error(`Orchestration aborted: Task ${task.name} failed. Reason: ${evaluation.reasoning}`);
     }
 
-    // Set winner
+    // Set winner and execute with potential failure injection & rerouting
     const winningBid = insertedBids.find((b) => b.agentId === evaluation.selectedAgentId)!;
     await db.update(bids).set({ status: 'accepted' }).where(eq(bids.id, winningBid.id));
-    await db.update(tasks).set({
-      winningAgentId: evaluation.selectedAgentId,
-      bidAmount: winningBid.feeUsd,
-      status: 'executing',
-    }).where(eq(tasks.id, task.id));
-
+    
     await logAudit(dbIntent.id, 'agent_selected', {
       taskId: task.id,
       selectedAgentId: evaluation.selectedAgentId,
@@ -173,49 +172,140 @@ export async function processUserIntent(
       evaluations: evaluation.evaluations,
     });
 
-    // Escrow simulation
-    const escrowAmount = 1.0; // Simulate native gas or transaction locked funds
-    await logAudit(dbIntent.id, 'escrow_locked', {
-      taskId: task.id,
-      agentId: evaluation.selectedAgentId,
-      amountLockedEth: escrowAmount,
-    });
+    let taskCompleted = false;
+    let attempts = 0;
+    let selectedAgentId: string | null = evaluation.selectedAgentId;
+    let currentBid = winningBid;
+    const evaluatedBidsList = [...evaluation.evaluations]; // copy of evaluations
 
-    // Simulate Execution delay + Tx hash
-    const txHash = `0x${Math.random().toString(16).substr(2, 40)}`;
-    
-    // Verification simulation
-    await logAudit(dbIntent.id, 'execution_completed', {
-      taskId: task.id,
-      agentId: evaluation.selectedAgentId,
-      txHash,
-    });
+    while (!taskCompleted && selectedAgentId) {
+      attempts++;
+      console.log(`⚡ Execution attempt ${attempts} using agent: ${selectedAgentId}`);
+      
+      // Update task record with current executing agent
+      await db.update(tasks).set({
+        winningAgentId: selectedAgentId,
+        bidAmount: currentBid.feeUsd,
+        status: 'executing',
+      }).where(eq(tasks.id, task.id));
 
-    await logAudit(dbIntent.id, 'verification_passed', {
-      taskId: task.id,
-      txHash,
-      proof: 'balance_increase_detected_on_chain',
-    });
+      // Unique taskId for on-chain mapping to satisfy Escrow.sol uniqueness constraints
+      const escrowTaskId = attempts === 1 ? task.id : `${task.id}-attempt-${attempts}`;
 
-    // Payout and Release escrow
-    await logAudit(dbIntent.id, 'escrow_released', {
-      taskId: task.id,
-      payoutAmountEth: escrowAmount,
-      feeAccruedEth: escrowAmount * 0.005, // 0.5% coordinator fee
-    });
+      // 1. Escrow Lock on-chain
+      const escrowAmountEth = '0.01'; // MVP locks 0.01 ETH in local Anvil
+      const escrowTxHash = await createOnChainEscrow(
+        escrowTaskId,
+        selectedAgentId,
+        escrowAmountEth,
+        3600 // 1 hour timeout
+      );
 
-    // Update task completed
-    await db.update(tasks).set({
-      status: 'completed',
-      txHash,
-    }).where(eq(tasks.id, task.id));
+      await logAudit(dbIntent.id, 'escrow_locked', {
+        taskId: task.id,
+        agentId: selectedAgentId,
+        amountLockedEth: escrowAmountEth,
+        txHash: escrowTxHash,
+        attempt: attempts,
+      });
 
-    finalLogs.push({
-      taskName: task.name,
-      agentId: evaluation.selectedAgentId,
-      txHash,
-      feePaid: winningBid.feeUsd,
-    });
+      // 2. Simulate Execution & Check for injected failure
+      // Trigger failure if intent prompt contains 'fail' and agent is compound-yield-agent or aave-yield-agent
+      // Only inject failure on the first attempt so that the task successfully reroutes and completes on the second attempt.
+      const injectFailure = rawIntentPrompt.toLowerCase().includes('fail') && attempts === 1 && (selectedAgentId === 'compound-yield-agent' || selectedAgentId === 'aave-yield-agent');
+      
+      if (injectFailure) {
+        console.log(`⚠️ Failure Injected: Simulating execution failure for agent ${selectedAgentId}...`);
+        
+        await logAudit(dbIntent.id, 'execution_failed', {
+          taskId: task.id,
+          agentId: selectedAgentId,
+          reason: 'Execution returned high slippage above policy thresholds',
+        });
+
+        // Slash and refund on-chain
+        const refundTxHash = await refundOnChainEscrow(escrowTaskId);
+        
+        await logAudit(dbIntent.id, 'escrow_refunded', {
+          taskId: task.id,
+          agentId: selectedAgentId,
+          reason: 'Slashed for execution failure',
+          txHash: refundTxHash,
+        });
+
+        // Remove failed agent from list of valid options
+        const failedIndex = evaluatedBidsList.findIndex((e) => e.agentId === selectedAgentId);
+        if (failedIndex !== -1) {
+          evaluatedBidsList[failedIndex].rejected = true;
+          evaluatedBidsList[failedIndex].reason = 'Failed execution attempt';
+        }
+
+        // Find the next best candidate
+        const nextBids = evaluatedBidsList.filter((e) => !e.rejected).sort((a, b) => b.score - a.score);
+        if (nextBids.length > 0) {
+          const previousAgentId = selectedAgentId;
+          selectedAgentId = nextBids[0].agentId;
+          currentBid = insertedBids.find((b) => b.agentId === selectedAgentId)!;
+          await logAudit(dbIntent.id, 'rerouting_task', {
+            taskId: task.id,
+            previousAgentId,
+            newAgentId: selectedAgentId,
+          });
+        } else {
+          // No more agents
+          selectedAgentId = null;
+        }
+      } else {
+        // Success execution path
+        const txHash = `0x${Math.random().toString(16).substr(2, 40)}`;
+        
+        await logAudit(dbIntent.id, 'execution_completed', {
+          taskId: task.id,
+          agentId: selectedAgentId,
+          txHash,
+        });
+
+        await logAudit(dbIntent.id, 'verification_passed', {
+          taskId: task.id,
+          txHash,
+          proof: 'balance_increase_detected_on_chain',
+        });
+
+        // Release escrow on-chain
+        const releaseTxHash = await releaseOnChainEscrow(escrowTaskId);
+
+        await logAudit(dbIntent.id, 'escrow_released', {
+          taskId: task.id,
+          payoutAmountEth: escrowAmountEth,
+          feeAccruedEth: (parseFloat(escrowAmountEth) * 0.005).toFixed(5), // 0.5% coordinator fee
+          txHash: releaseTxHash,
+        });
+
+        await db.update(tasks).set({
+          status: 'completed',
+          txHash,
+        }).where(eq(tasks.id, task.id));
+
+        finalLogs.push({
+          taskName: task.name,
+          agentId: selectedAgentId,
+          txHash,
+          feePaid: currentBid.feeUsd,
+        });
+
+        taskCompleted = true;
+      }
+    }
+
+    if (!taskCompleted) {
+      await db.update(tasks).set({
+        status: 'failed',
+        errorReason: 'All selected agents failed execution and were slashed.',
+      }).where(eq(tasks.id, task.id));
+
+      await db.update(intents).set({ status: 'failed' }).where(eq(intents.id, dbIntent.id));
+      throw new Error(`Orchestration aborted: Task ${task.name} failed all execution attempts.`);
+    }
   }
 
   // 7. Complete Intent
