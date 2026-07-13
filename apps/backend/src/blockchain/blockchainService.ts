@@ -27,6 +27,9 @@ const addresses = JSON.parse(readFileSync(ADDRESSES_PATH, 'utf8'));
 const OUT_DIR = join(__dirname, '../../../../packages/contracts/out');
 const reputationAbi = JSON.parse(readFileSync(join(OUT_DIR, 'Reputation.abi'), 'utf8'));
 const escrowAbi = JSON.parse(readFileSync(join(OUT_DIR, 'Escrow.abi'), 'utf8'));
+const settlementAbi = JSON.parse(readFileSync(join(OUT_DIR, 'Settlement.abi'), 'utf8'));
+const registryAbi = JSON.parse(readFileSync(join(OUT_DIR, 'AgentRegistry.abi'), 'utf8'));
+const intentStorageAbi = JSON.parse(readFileSync(join(OUT_DIR, 'IntentStorage.abi'), 'utf8'));
 
 export function getTaskIdHash(taskId: string): `0x${string}` {
   // If the taskId is already a valid UUID/hash, we can hash its bytes to get a clean bytes32
@@ -114,5 +117,75 @@ export async function refundOnChainEscrow(taskId: string): Promise<`0x${string}`
 
   await publicClient.waitForTransactionReceipt({ hash });
   console.log(`⛓️ Blockchain: Escrow refund completed. Tx: ${hash}`);
+  return hash;
+}
+
+/**
+ * Settle payment on-chain via the Settlement contract, splitting fees between agent and treasury.
+ */
+export async function settleOnChainPayment(
+  taskId: string,
+  agentWallet: string,
+  amountEth: string
+): Promise<`0x${string}`> {
+  const taskIdHash = getTaskIdHash(taskId);
+  console.log(`⛓️ Blockchain: Settling payment on-chain for task ${taskId}. Agent wallet: ${agentWallet}...`);
+
+  const hash = await walletClient.writeContract({
+    address: addresses.settlement,
+    abi: settlementAbi,
+    functionName: 'settlePayment',
+    args: [taskIdHash, agentWallet as `0x${string}`],
+    value: parseEther(amountEth),
+  });
+
+  await publicClient.waitForTransactionReceipt({ hash });
+  console.log(`⛓️ Blockchain: On-chain payment settlement completed. Tx: ${hash}`);
+  return hash;
+}
+
+/**
+ * Register a specialist agent on-chain in the AgentRegistry contract.
+ */
+export async function registerOnChainAgent(
+  agentId: string,
+  agentWallet: string,
+  endpoint: string
+): Promise<`0x${string}`> {
+  console.log(`⛓️ Blockchain: Registering agent ${agentId} on-chain...`);
+  
+  const hash = await walletClient.writeContract({
+    address: addresses.agentRegistry,
+    abi: registryAbi,
+    functionName: 'registerAgent',
+    args: [agentId, agentWallet as `0x${string}`, endpoint],
+  });
+
+  await publicClient.waitForTransactionReceipt({ hash });
+  console.log(`⛓️ Blockchain: On-chain agent registration completed. Tx: ${hash}`);
+  return hash;
+}
+
+/**
+ * Record an active intent hash on-chain in the IntentStorage contract.
+ */
+export async function recordOnChainIntent(
+  intentId: string,
+  userWallet: string,
+  intentHash: `0x${string}`,
+  status: string
+): Promise<`0x${string}`> {
+  const intentIdHash = getTaskIdHash(intentId); // standard bytes32 hash of uuid
+  console.log(`⛓️ Blockchain: Recording intent ${intentId} on-chain in IntentStorage...`);
+
+  const hash = await walletClient.writeContract({
+    address: addresses.intentStorage,
+    abi: intentStorageAbi,
+    functionName: 'recordIntent',
+    args: [intentIdHash, userWallet as `0x${string}`, intentHash, status],
+  });
+
+  await publicClient.waitForTransactionReceipt({ hash });
+  console.log(`⛓️ Blockchain: Intent successfully recorded on-chain. Tx: ${hash}`);
   return hash;
 }

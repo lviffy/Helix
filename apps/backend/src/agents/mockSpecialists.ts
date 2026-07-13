@@ -68,6 +68,66 @@ export function getAgentBids(task: TaskNode): SpecialistBid[] {
     ];
   }
 
+  if (taskName === 'withdraw') {
+    return [
+      {
+        agentId: 'aave-yield-agent',
+        feeUsd: 0.30,
+        etaSeconds: 12,
+        confidence: 0.990,
+        protocolRiskScore: 95,
+        slippageEstimatedPct: 0.05,
+        reputationScore: 95.00,
+      },
+      {
+        agentId: 'compound-yield-agent',
+        feeUsd: 0.25,
+        etaSeconds: 15,
+        confidence: 0.970,
+        protocolRiskScore: 88,
+        slippageEstimatedPct: 0.08,
+        reputationScore: 88.00,
+      },
+    ];
+  }
+
+  if (taskName === 'swap') {
+    return [
+      {
+        agentId: 'aave-yield-agent',
+        feeUsd: 0.40,
+        etaSeconds: 10,
+        confidence: 0.980,
+        protocolRiskScore: 95,
+        slippageEstimatedPct: 0.10,
+        reputationScore: 95.00,
+      },
+      {
+        agentId: 'compound-yield-agent',
+        feeUsd: 0.35,
+        etaSeconds: 12,
+        confidence: 0.970,
+        protocolRiskScore: 88,
+        slippageEstimatedPct: 0.12,
+        reputationScore: 88.00,
+      },
+    ];
+  }
+
+  if (taskName === 'check_gas' || taskName === 'check_tvl' || taskName === 'check_depeg' || taskName === 'check_exit_liquidity') {
+    return [
+      {
+        agentId: 'helix-oracle-agent',
+        feeUsd: 0.00,
+        etaSeconds: 1,
+        confidence: 1.000,
+        protocolRiskScore: 100,
+        slippageEstimatedPct: 0.00,
+        reputationScore: 100.00,
+      }
+    ];
+  }
+
   // Fallback default bidding for generic tasks (e.g. check_balances)
   return [
     {

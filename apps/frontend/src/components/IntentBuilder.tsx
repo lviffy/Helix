@@ -14,12 +14,12 @@ const TEMPLATES = [
     prompt: 'Keep my USDC earning the best safe yield across Ethereum and Base. Rebalance monthly. Avoid protocols with safety score under 80.',
   },
   {
-    title: 'Cross-Chain Yield Rebalance',
-    prompt: 'Bridge 5000 USDT from Ethereum to Base and deposit it into Aave if the APY is above 6%. Protect against high gas costs.',
+    title: 'Defensive TVL & Peg Monitor',
+    prompt: 'If the TVL of my deposit pool in Aave falls by more than 10% in 12 hours, or if USDC depegs below $0.985, immediately withdraw my assets and move them to my safe wallet on X Layer.',
   },
   {
-    title: 'Conservative Safety Guard',
-    prompt: 'Allocate 10000 USDC only into highly-audited yield protocols with TVL greater than 100M. Prioritize safety over cost.',
+    title: 'Cross-Chain Yield Rebalance',
+    prompt: 'Bridge 5000 USDT from Ethereum to Base and deposit it into Aave if the APY is above 6%. Protect against high gas costs.',
   },
 ];
 

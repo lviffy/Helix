@@ -86,6 +86,17 @@ async function seed() {
       totalVolumeUsd: '34000000.00',
       active: true,
     },
+    {
+      id: 'helix-oracle-agent',
+      walletAddress: '0xDef0000000000000000000000000000000000006',
+      name: 'Helix Telemetry Oracle Agent',
+      capabilities: ['check_gas', 'check_tvl', 'check_depeg'],
+      endpoint: 'http://localhost:4000/agents/helix-oracle',
+      reputationScore: '100.00',
+      successRatePct: '100.00',
+      totalVolumeUsd: '0.00',
+      active: true,
+    },
   ];
 
   for (const agent of mockAgents) {

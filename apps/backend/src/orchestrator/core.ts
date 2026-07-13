@@ -4,7 +4,8 @@ import { eq } from 'drizzle-orm';
 import { parseIntent, planExecution, explainExecution } from '@helix/ai';
 import { getAgentBids } from '../agents/mockSpecialists';
 import { evaluateBids } from './decision';
-import { getOnChainReputation, createOnChainEscrow, releaseOnChainEscrow, refundOnChainEscrow } from '../blockchain/blockchainService';
+import { getOnChainReputation, createOnChainEscrow, releaseOnChainEscrow, refundOnChainEscrow, settleOnChainPayment } from '../blockchain/blockchainService';
+import { oracleService } from '../lib/oracleService';
 
 export interface ProcessIntentResult {
   intentId: string;
@@ -15,9 +16,10 @@ export interface ProcessIntentResult {
 
 export async function processUserIntent(
   userWallet: string,
-  rawIntentPrompt: string
-): Promise<ProcessIntentResult> {
-  console.log(`🌀 Orchestrator: Processing intent for wallet ${userWallet}...`);
+  rawIntentPrompt: string,
+  dryRun: boolean = false
+): Promise<any> {
+  console.log(`🌀 Orchestrator: Processing intent for wallet ${userWallet} (dryRun: ${dryRun})...`);
 
   // 1. Fetch user policy profile or create default
   let userProfile = await db.query.users.findFirst({
@@ -54,7 +56,85 @@ export async function processUserIntent(
   const parsedIntent = await parseIntent(rawIntentPrompt);
   console.log(`✅ Parser output: ${JSON.stringify(parsedIntent, null, 2)}`);
 
-  // 3. Save intent to DB
+  if (dryRun) {
+    // Generate plan DAG for preview
+    const executionPlan = await planExecution({
+      type: parsedIntent.type,
+      goal: parsedIntent.goal,
+      policies: parsedIntent.policies,
+      conditionalRules: (parsedIntent as any).conditionalRules || [],
+    } as any);
+
+    // Save intent to DB as draft
+    const [dbIntent] = await db.insert(intents).values({
+      userWallet,
+      type: parsedIntent.type,
+      status: 'draft',
+      goal: parsedIntent.goal,
+      policies: parsedIntent.policies,
+      isRecurring: parsedIntent.isRecurring,
+      conditionalRules: (parsedIntent as any).conditionalRules || null,
+    }).returning();
+
+    // Insert tasks as draft so frontend can render them
+    const dbTasksList = [];
+    for (const task of executionPlan.tasks) {
+      const [insertedTask] = await db.insert(tasks).values({
+        intentId: dbIntent.id,
+        name: task.name,
+        status: 'pending',
+        dependencies: task.dependencies,
+      }).returning();
+      dbTasksList.push({
+        id: insertedTask.id,
+        tempId: task.id,
+        name: task.name,
+        dependencies: task.dependencies,
+        params: task.params,
+        status: 'pending',
+      });
+    }
+
+    // Compute estimated fees and yields for optimization feedback
+    let totalEstimatedFeeUsd = 0;
+    for (const task of executionPlan.tasks) {
+      const mockBids = getAgentBids(task);
+      const evalResult = evaluateBids(mockBids, parsedIntent.policies as any);
+      if (evalResult.selectedAgentId) {
+        const winningBid = mockBids.find(b => b.agentId === evalResult.selectedAgentId);
+        if (winningBid) {
+          totalEstimatedFeeUsd += parseFloat(winningBid.feeUsd.toString());
+        }
+      }
+    }
+
+    const principal = parsedIntent.goal.assets.reduce((sum, a) => sum + a.amount, 0);
+    const apy = parsedIntent.goal.yieldTargetApy || 0.05; // default 5%
+    const projectedYield30d = principal * apy * (30 / 365);
+    const netYield30d = projectedYield30d - totalEstimatedFeeUsd;
+    const feeWarning = (parsedIntent.type === 'yield_optimization' && netYield30d < 0)
+      ? `Estimated coordination/gas fees ($${totalEstimatedFeeUsd.toFixed(2)}) exceed your projected 30-day yield ($${projectedYield30d.toFixed(2)}).`
+      : null;
+
+    return {
+      intentId: dbIntent.id,
+      goal: parsedIntent.goal,
+      policies: parsedIntent.policies,
+      type: parsedIntent.type,
+      isRecurring: parsedIntent.isRecurring,
+      conditionalRules: (parsedIntent as any).conditionalRules || [],
+      tasks: dbTasksList,
+      dryRun: true,
+      feeAnalysis: {
+        totalEstimatedFeeUsd,
+        projectedYield30d,
+        netYield30d,
+        feeWarning,
+      }
+    };
+  }
+
+  // 3. Save active intent to DB
   const [dbIntent] = await db.insert(intents).values({
     userWallet,
     type: parsedIntent.type,
@@ -62,6 +142,7 @@ export async function processUserIntent(
     goal: parsedIntent.goal,
     policies: parsedIntent.policies,
     isRecurring: parsedIntent.isRecurring,
+    conditionalRules: (parsedIntent as any).conditionalRules || null,
   }).returning();
 
   await logAudit(dbIntent.id, 'intent_received', { parsedIntent });
@@ -203,22 +284,33 @@ export async function executeIntent(
       // Unique taskId for on-chain mapping to satisfy Escrow.sol uniqueness constraints
       const escrowTaskId = attempts === 1 ? task.id : `${task.id}-attempt-${attempts}`;
 
-      // 1. Escrow Lock on-chain
+      const isFreeOracleTask = selectedAgentId === 'helix-oracle-agent';
       const escrowAmountEth = '0.01'; // MVP locks 0.01 ETH in local Anvil
-      const escrowTxHash = await createOnChainEscrow(
-        escrowTaskId,
-        selectedAgentId,
-        escrowAmountEth,
-        3600 // 1 hour timeout
-      );
+      let escrowTxHash = '';
 
-      await logAudit(dbIntent.id, 'escrow_locked', {
-        taskId: task.id,
-        agentId: selectedAgentId,
-        amountLockedEth: escrowAmountEth,
-        txHash: escrowTxHash,
-        attempt: attempts,
-      });
+      if (!isFreeOracleTask) {
+        // 1. Escrow Lock on-chain
+        escrowTxHash = await createOnChainEscrow(
+          escrowTaskId,
+          selectedAgentId,
+          escrowAmountEth,
+          3600 // 1 hour timeout
+        );
+
+        await logAudit(dbIntent.id, 'escrow_locked', {
+          taskId: task.id,
+          agentId: selectedAgentId,
+          amountLockedEth: escrowAmountEth,
+          txHash: escrowTxHash,
+          attempt: attempts,
+        });
+      } else {
+        await logAudit(dbIntent.id, 'oracle_check_initiated', {
+          taskId: task.id,
+          agentId: selectedAgentId,
+          attempt: attempts,
+        });
+      }
 
       // 2. Simulate Execution & Check for injected failure
       // Trigger failure if intent prompt contains 'fail' and agent is compound-yield-agent or aave-yield-agent
@@ -234,15 +326,17 @@ export async function executeIntent(
           reason: 'Execution returned high slippage above policy thresholds',
         });
 
-        // Slash and refund on-chain
-        const refundTxHash = await refundOnChainEscrow(escrowTaskId);
-        
-        await logAudit(dbIntent.id, 'escrow_refunded', {
-          taskId: task.id,
-          agentId: selectedAgentId,
-          reason: 'Slashed for execution failure',
-          txHash: refundTxHash,
-        });
+        if (!isFreeOracleTask) {
+          // Slash and refund on-chain
+          const refundTxHash = await refundOnChainEscrow(escrowTaskId);
+          
+          await logAudit(dbIntent.id, 'escrow_refunded', {
+            taskId: task.id,
+            agentId: selectedAgentId,
+            reason: 'Slashed for execution failure',
+            txHash: refundTxHash,
+          });
+        }
 
         // Update agent stats on failure
         await updateAgentStats(selectedAgentId, false, 0);
@@ -272,6 +366,38 @@ export async function executeIntent(
       } else {
         // Success execution path
         const txHash = `0x${Math.random().toString(16).substr(2, 40)}`;
+
+        const isExitGuard = task.name === 'check_exit_liquidity';
+        if (isExitGuard) {
+          const protocolId = task.params?.protocol || 'aave';
+          const goalAssets = dbIntent.goal?.assets || [];
+          const amountUsd = goalAssets[0]?.amount || 5000;
+          const maxSlippageLimit = dbIntent.policies?.maxExitSlippagePct || 1.0;
+
+          const { slippagePct, exitDepthUsd } = oracleService.getExitSlippage(protocolId, amountUsd);
+          console.log(`🛡️ ExitGuard Seatbelt Check: Pool exit depth $${(exitDepthUsd/1000).toFixed(0)}k. Size $${amountUsd}. Slippage: ${slippagePct}%. Limit: ${maxSlippageLimit}%`);
+
+          if (slippagePct > maxSlippageLimit) {
+            console.log(`⚠️ ExitGuard BLOCK: Slippage ${slippagePct}% exceeds limit ${maxSlippageLimit}%! Aborting...`);
+            
+            await logAudit(dbIntent.id, 'exit_guard_blocked', {
+              taskId: task.id,
+              protocolId,
+              amountUsd,
+              slippagePct,
+              limitPct: maxSlippageLimit,
+              reason: `Exit slippage (${slippagePct}%) exceeds maximum limit (${maxSlippageLimit}%) due to thin pool liquidity (depth: $${(exitDepthUsd/1000).toFixed(0)}k).`,
+            });
+
+            await db.update(tasks).set({
+              status: 'failed',
+              errorReason: `ExitGuard BLOCK: slippage ${slippagePct}% exceeds limit ${maxSlippageLimit}%`,
+            }).where(eq(tasks.id, task.id));
+
+            await db.update(intents).set({ status: 'failed' }).where(eq(intents.id, dbIntent.id));
+            throw new Error(`Orchestration aborted: ExitGuard blocked execution due to thin pool liquidity.`);
+          }
+        }
         
         await logAudit(dbIntent.id, 'execution_completed', {
           taskId: task.id,
@@ -282,18 +408,48 @@ export async function executeIntent(
         await logAudit(dbIntent.id, 'verification_passed', {
           taskId: task.id,
           txHash,
-          proof: 'balance_increase_detected_on_chain',
+          proof: isFreeOracleTask ? 'oracle_conditions_verified_passed' : 'balance_increase_detected_on_chain',
         });
 
-        // Release escrow on-chain
-        const releaseTxHash = await releaseOnChainEscrow(escrowTaskId);
+        if (!isFreeOracleTask) {
+          // Release escrow on-chain
+          const releaseTxHash = await releaseOnChainEscrow(escrowTaskId);
 
-        await logAudit(dbIntent.id, 'escrow_released', {
-          taskId: task.id,
-          payoutAmountEth: escrowAmountEth,
-          feeAccruedEth: (parseFloat(escrowAmountEth) * 0.005).toFixed(5), // 0.5% coordinator fee
-          txHash: releaseTxHash,
-        });
+          await logAudit(dbIntent.id, 'escrow_released', {
+            taskId: task.id,
+            payoutAmountEth: escrowAmountEth,
+            feeAccruedEth: (parseFloat(escrowAmountEth) * 0.005).toFixed(5), // 0.5% coordinator fee
+            txHash: releaseTxHash,
+          });
+
+          // Fetch agent wallet address to perform on-chain settlement fee split
+          let agentWallet = '0xDef0000000000000000000000000000000000001'; // fallback
+          if (selectedAgentId) {
+            const agentRecord = await db.query.agents.findFirst({
+              where: eq(agents.id, selectedAgentId),
+            });
+            if (agentRecord) {
+              agentWallet = agentRecord.walletAddress;
+            }
+          }
+
+          // Settle payment on-chain via Settlement contract
+          const settlementTxHash = await settleOnChainPayment(escrowTaskId, agentWallet, escrowAmountEth);
+
+          await logAudit(dbIntent.id, 'payment_settled_on_chain', {
+            taskId: task.id,
+            agentId: selectedAgentId,
+            agentWallet,
+            amountEth: escrowAmountEth,
+            txHash: settlementTxHash,
+          });
+        } else {
+          await logAudit(dbIntent.id, 'oracle_check_passed', {
+            taskId: task.id,
+            agentId: selectedAgentId,
+            txHash,
+          });
+        }
 
         await db.update(tasks).set({
           status: 'completed',

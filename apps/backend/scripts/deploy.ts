@@ -51,7 +51,27 @@ async function main() {
   const regAddr = regReceipt.contractAddress!;
   console.log(`✅ AgentRegistry deployed at: ${regAddr}`);
 
-  // 3. Deploy Escrow (passing Reputation address)
+  // 3. Deploy Treasury
+  const treasuryArt = loadArtifact('Treasury');
+  const treasuryHash = await walletClient.deployContract({
+    abi: treasuryArt.abi,
+    bytecode: treasuryArt.bytecode,
+  });
+  const treasuryReceipt = await publicClient.waitForTransactionReceipt({ hash: treasuryHash });
+  const treasuryAddr = treasuryReceipt.contractAddress!;
+  console.log(`✅ Treasury deployed at: ${treasuryAddr}`);
+
+  // 4. Deploy IntentStorage
+  const storageArt = loadArtifact('IntentStorage');
+  const storageHash = await walletClient.deployContract({
+    abi: storageArt.abi,
+    bytecode: storageArt.bytecode,
+  });
+  const storageReceipt = await publicClient.waitForTransactionReceipt({ hash: storageHash });
+  const storageAddr = storageReceipt.contractAddress!;
+  console.log(`✅ IntentStorage deployed at: ${storageAddr}`);
+
+  // 5. Deploy Escrow (passing Reputation address)
   const escrowArt = loadArtifact('Escrow');
   const escrowHash = await walletClient.deployContract({
     abi: escrowArt.abi,
@@ -62,18 +82,18 @@ async function main() {
   const escrowAddr = escrowReceipt.contractAddress!;
   console.log(`✅ Escrow deployed at: ${escrowAddr}`);
 
-  // 4. Deploy Settlement (passing fee recipient and fee bps - 0.5% / 50 bps)
+  // 6. Deploy Settlement (passing Treasury address as fee recipient and fee bps - 0.5% / 50 bps)
   const settlementArt = loadArtifact('Settlement');
   const settlementHash = await walletClient.deployContract({
     abi: settlementArt.abi,
     bytecode: settlementArt.bytecode,
-    args: [account.address, 50n],
+    args: [treasuryAddr, 50n],
   });
   const setReceipt = await publicClient.waitForTransactionReceipt({ hash: settlementHash });
   const setAddr = setReceipt.contractAddress!;
   console.log(`✅ Settlement deployed at: ${setAddr}`);
 
-  // 5. Configure Reputation contract to trust Escrow contract as updater
+  // 7. Configure Reputation contract to trust Escrow contract as updater
   console.log('⚙️ Configuring Reputation updater permissions...');
   const setUpdaterHash = await walletClient.writeContract({
     address: repAddr,
@@ -90,6 +110,8 @@ async function main() {
     agentRegistry: regAddr,
     escrow: escrowAddr,
     settlement: setAddr,
+    treasury: treasuryAddr,
+    intentStorage: storageAddr,
   };
   
   const addressesPath = join(__dirname, '../src/blockchain/addresses.json');

@@ -1,13 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, HelpCircle, Activity, Star, RefreshCw, Layers, Database, Wallet } from 'lucide-react';
+import { ShieldCheck, HelpCircle, Activity, Star, RefreshCw, Layers, Database, Wallet, ArrowRight, XCircle, CheckCircle2 } from 'lucide-react';
 import IntentBuilder from '../../components/IntentBuilder';
 import ExecutionTimeline from '../../components/ExecutionTimeline';
 import AgentMarketplace from '../../components/AgentMarketplace';
+import VisualFlowGraph from '../../components/VisualFlowGraph';
+import GuardrailsPanel from '../../components/GuardrailsPanel';
 import { supabase } from '../../lib/supabase';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
+import DeveloperConsole from '../../components/DeveloperConsole';
 
 export default function Dashboard() {
   const { address, isConnected } = useAccount();
@@ -18,10 +21,20 @@ export default function Dashboard() {
   const [agents, setAgents] = useState([]);
   const [intentsHistory, setIntentsHistory] = useState([]);
   const [activeResult, setActiveResult] = useState<any>(null);
+  const [activeBlueprint, setActiveBlueprint] = useState<any>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
   const [session, setSession] = useState<any>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // States for interactive visual policy overrides
+  const [overrideMinRisk, setOverrideMinRisk] = useState<number | null>(null);
+  const [overrideMinTvl, setOverrideMinTvl] = useState<number | null>(null);
+  const [overrideMaxSlippage, setOverrideMaxSlippage] = useState<number | null>(null);
+  const [overrideMaxGas, setOverrideMaxGas] = useState<number | null>(null);
+
+  const [activeTab, setActiveTab] = useState<'investor' | 'developer'>('investor');
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setNotification({ message, type });
@@ -69,6 +82,21 @@ export default function Dashboard() {
     fetchAgents();
     fetchIntents();
   }, [wallet, session]);
+
+  // Synchronize blueprint policies with visual sliders state
+  useEffect(() => {
+    if (activeBlueprint) {
+      setOverrideMinRisk(activeBlueprint.policies?.minProtocolRiskScore ?? 75);
+      setOverrideMinTvl((activeBlueprint.policies?.minTvlUsd ?? 50000000) / 1000000);
+      setOverrideMaxSlippage(activeBlueprint.policies?.maxSlippagePct ?? 0.5);
+      setOverrideMaxGas(activeBlueprint.policies?.maxGasPerTxUsd ?? 5);
+    } else {
+      setOverrideMinRisk(null);
+      setOverrideMinTvl(null);
+      setOverrideMaxSlippage(null);
+      setOverrideMaxGas(null);
+    }
+  }, [activeBlueprint]);
 
   // Supabase Realtime DB changes subscription
   useEffect(() => {
@@ -155,11 +183,12 @@ export default function Dashboard() {
   const handleOrchestrateIntent = async (prompt: string, policies: any) => {
     setIsLoading(true);
     setActiveResult(null);
+    setActiveBlueprint(null);
     try {
       const res = await fetch('http://localhost:4000/api/intents', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ walletAddress: wallet, prompt, policies }),
+        body: JSON.stringify({ walletAddress: wallet, prompt, policies, dryRun: true }),
       });
 
       if (!res.ok) {
@@ -169,9 +198,49 @@ export default function Dashboard() {
 
       const result = await res.json();
       
+      // Save parsed blueprint details to state
+      setActiveBlueprint(result);
+      showNotification('Execution blueprint generated. Please review below.', 'success');
+    } catch (err: any) {
+      showNotification(err.message || 'Error processing intent', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmBlueprint = async () => {
+    if (!activeBlueprint) return;
+    setIsConfirming(true);
+    try {
+      const res = await fetch(`http://localhost:4000/api/intents/${activeBlueprint.intentId}/confirm`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          policies: {
+            minProtocolRiskScore: overrideMinRisk,
+            minTvlUsd: overrideMinTvl ? overrideMinTvl * 1000000 : undefined,
+            maxSlippagePct: overrideMaxSlippage,
+            maxGasPerTxUsd: overrideMaxGas,
+          }
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to confirm intent');
+      }
+
+      const result = await res.json();
+
+      if (result.isGuardrail) {
+        showNotification(result.message, 'success');
+        setActiveBlueprint(null);
+        fetchIntents();
+        return;
+      }
+
       // Construct a mock list of tasks to render execution timeline
       const tasksMap = result.plan.tasks.map((task: any) => {
-        // Find matching status / hash from logs
         const completionLog = result.auditTrail.find(
           (log: any) => log.event === 'execution_completed' && log.details?.taskId === task.id
         );
@@ -185,26 +254,31 @@ export default function Dashboard() {
           name: task.name,
           status,
           winningAgentId: agentLog?.details?.selectedAgentId || null,
-          bidAmount: agentLog?.details?.evaluations?.find((e: any) => e.agentId === agentLog?.details?.selectedAgentId)?.score ? '1.15' : '0.45', // simulated fee quotes
+          bidAmount: agentLog?.details?.evaluations?.find((e: any) => e.agentId === agentLog?.details?.selectedAgentId)?.score ? '1.15' : '0.45',
           txHash: completionLog?.details?.txHash || null,
         };
       });
 
-      // Override active result details
       setActiveResult({
         tasks: tasksMap,
         auditLogs: result.auditTrail,
         explanation: result.explanation,
       });
 
+      setActiveBlueprint(null);
       fetchIntents();
-      fetchAgents(); // update total volumes/metrics
-      showNotification('Intent executed successfully!', 'success');
+      fetchAgents();
+      showNotification('Blueprint approved and signed! Settlement completed.', 'success');
     } catch (err: any) {
-      showNotification(err.message || 'Error processing intent', 'error');
+      showNotification(err.message || 'Error executing blueprint', 'error');
     } finally {
-      setIsLoading(false);
+      setIsConfirming(false);
     }
+  };
+
+  const handleCancelBlueprint = () => {
+    setActiveBlueprint(null);
+    showNotification('Blueprint plan declined.', 'info');
   };
 
   return (
@@ -301,12 +375,162 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Content layout */}
-      <div className="max-w-7xl mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* Left column: Intent input and History */}
-        <div className="lg:col-span-7 space-y-8">
-          <IntentBuilder onSubmit={handleOrchestrateIntent} isLoading={isLoading} />
+      {/* Tab Switcher */}
+      <div className="max-w-7xl mx-auto px-6 mt-8 flex border-b border-border text-xs font-mono">
+        <button
+          onClick={() => setActiveTab('investor')}
+          className={`pb-2.5 px-4 font-bold border-b-2 transition-all ${
+            activeTab === 'investor' 
+              ? 'border-primary text-primary' 
+              : 'border-transparent text-gray-light hover:text-white'
+          }`}
+        >
+          INVESTOR TERMINAL
+        </button>
+        <button
+          onClick={() => setActiveTab('developer')}
+          className={`pb-2.5 px-4 font-bold border-b-2 transition-all ${
+            activeTab === 'developer' 
+              ? 'border-primary text-primary' 
+              : 'border-transparent text-gray-light hover:text-white'
+          }`}
+        >
+          DEVELOPER CONSOLE
+        </button>
+      </div>
+
+      {activeTab === 'investor' ? (
+        /* Content layout - Investor Terminal */
+        <div className="max-w-7xl mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Left column: Intent input, Blueprint Verification, and History */}
+          <div className="lg:col-span-7 space-y-8">
+            <IntentBuilder onSubmit={handleOrchestrateIntent} isLoading={isLoading} />
+
+          {/* Visual Blueprint Verification Panel */}
+          {activeBlueprint && (
+            <div className="bg-card border border-border rounded-lg p-6 space-y-6 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-1.5 font-sans">
+                    <Layers className="w-4 h-4 text-primary" />
+                    <span>Confirm Financial Execution Blueprint</span>
+                  </h3>
+                  <p className="text-[10px] text-gray-light font-mono font-medium">Verify execution DAG and policy rules before signing</p>
+                </div>
+                <span className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider font-mono bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                  Awaiting Authorization
+                </span>
+              </div>
+
+              {/* Custom SVG flow graph */}
+              <VisualFlowGraph tasks={activeBlueprint.tasks} />
+
+              {/* Policies, Overrides, and Fee Projection display */}
+              <div className="p-4 bg-surface-deep border border-border rounded-md grid grid-cols-1 md:grid-cols-2 gap-6 text-xs font-sans">
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <p className="text-gray-medium font-bold uppercase tracking-wider text-[8px] font-mono">Intent Objective</p>
+                    <p className="text-white font-bold leading-normal">{activeBlueprint.goal?.description}</p>
+                  </div>
+
+                  {activeBlueprint.feeAnalysis && (
+                    <div className="p-3 bg-card border border-border rounded space-y-2">
+                      <p className="text-gray-medium font-bold uppercase tracking-wider text-[8px] font-mono">Projected Yield vs Fees (30 Days)</p>
+                      <div className="grid grid-cols-3 gap-2 text-[10px] font-mono">
+                        <div>Fees: <span className="text-red-400 font-bold">${activeBlueprint.feeAnalysis.totalEstimatedFeeUsd.toFixed(2)}</span></div>
+                        <div>Yield: <span className="text-emerald-400 font-bold">${activeBlueprint.feeAnalysis.projectedYield30d.toFixed(2)}</span></div>
+                        <div>Net: <span className={`font-bold ${activeBlueprint.feeAnalysis.netYield30d < 0 ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>${activeBlueprint.feeAnalysis.netYield30d.toFixed(2)}</span></div>
+                      </div>
+                      {activeBlueprint.feeAnalysis.feeWarning && (
+                        <p className="text-[9px] text-red-400 font-medium font-mono leading-tight pt-1">
+                          ⚠️ {activeBlueprint.feeAnalysis.feeWarning}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-gray-medium font-bold uppercase tracking-wider text-[8px] font-mono">Adjust Plan Policies & Guardrails</p>
+                  <div className="space-y-2.5 text-[10px] font-mono">
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span>Min Protocol Risk:</span>
+                        <span className="text-primary font-bold">{overrideMinRisk}/100</span>
+                      </div>
+                      <input
+                        type="range" min="50" max="95" value={overrideMinRisk ?? 75}
+                        onChange={(e) => setOverrideMinRisk(Number(e.target.value))}
+                        className="w-full accent-primary bg-border rounded-md appearance-none h-1 cursor-pointer"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span>Min TVL / Liquidity:</span>
+                        <span className="text-primary font-bold">${overrideMinTvl}M</span>
+                      </div>
+                      <input
+                        type="range" min="10" max="200" value={overrideMinTvl ?? 50}
+                        onChange={(e) => setOverrideMinTvl(Number(e.target.value))}
+                        className="w-full accent-primary bg-border rounded-md appearance-none h-1 cursor-pointer"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span>Max Slippage Limit:</span>
+                        <span className="text-primary font-bold">{overrideMaxSlippage}%</span>
+                      </div>
+                      <input
+                        type="range" min="0.1" max="1.5" step="0.1" value={overrideMaxSlippage ?? 0.5}
+                        onChange={(e) => setOverrideMaxSlippage(Number(e.target.value))}
+                        className="w-full accent-primary bg-border rounded-md appearance-none h-1 cursor-pointer"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span>Max Gas Cost cap:</span>
+                        <span className="text-primary font-bold">${overrideMaxGas}</span>
+                      </div>
+                      <input
+                        type="range" min="1" max="20" value={overrideMaxGas ?? 5}
+                        onChange={(e) => setOverrideMaxGas(Number(e.target.value))}
+                        className="w-full accent-primary bg-border rounded-md appearance-none h-1 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cancel / Approve Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancelBlueprint}
+                  disabled={isConfirming}
+                  className="flex-1 py-3 border border-border bg-transparent hover:bg-surface-muted text-white rounded-md text-xs font-bold transition-all disabled:opacity-50"
+                >
+                  Decline Plan
+                </button>
+                <button
+                  onClick={handleConfirmBlueprint}
+                  disabled={isConfirming}
+                  className="flex-1 py-3 bg-primary hover:bg-lime-bright text-black rounded-md text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md"
+                >
+                  {isConfirming ? (
+                     <div className="flex items-center gap-2">
+                       <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                       <span>Signing Blueprint...</span>
+                     </div>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Sign & Execute Blueprint</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Active timeline rendering */}
           {activeResult && (
@@ -353,6 +577,8 @@ export default function Dashboard() {
                         ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
                         : intent.status === 'failed'
                         ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                        : intent.status === 'draft'
+                        ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                         : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
                     }`}>
                       {intent.status}
@@ -364,7 +590,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Right column: Leaderboards and rankings */}
+        {/* Right column: Leaderboards, active telemetry, and safety details */}
         <div className="lg:col-span-5 space-y-8">
           {agents.length === 0 ? (
             <div className="p-8 text-center bg-card border border-dashed border-border rounded-md">
@@ -380,6 +606,9 @@ export default function Dashboard() {
             <AgentMarketplace agents={agents} />
           )}
 
+          {/* Active Guardrails telemetry feed simulator */}
+          <GuardrailsPanel onTelemetryUpdated={fetchIntents} showNotification={showNotification} />
+
           {/* Protocol safety info widget */}
           <div className="bg-card border border-border rounded-lg p-5">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -392,6 +621,17 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      ) : (
+        /* Content layout - Developer Console */
+        <div className="max-w-7xl mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-300">
+          <div className="lg:col-span-7 space-y-8">
+            <DeveloperConsole onAgentRegistered={fetchAgents} showNotification={showNotification} />
+          </div>
+          <div className="lg:col-span-5 space-y-8">
+            <AgentMarketplace agents={agents} />
+          </div>
+        </div>
+      )}
     </main>
   );
 }

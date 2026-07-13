@@ -21,11 +21,75 @@ export async function generateStructured<T>({
     // 1. Parsing mock response
     if (prompt.includes('Parse the following')) {
       const isFailedPrompt = prompt.toLowerCase().includes('fail');
+      const lowerPrompt = prompt.toLowerCase();
+      
+      if (lowerPrompt.includes('depeg') || lowerPrompt.includes('falls') || lowerPrompt.includes('guardrail') || lowerPrompt.includes('withdraw')) {
+        return {
+          type: 'defensive_guardrail',
+          goal: {
+            description: 'If TVL of Aave falls > 10% or USDC depegs < $0.985, withdraw assets to safety',
+            assets: [{ symbol: 'USDC', amount: 5000, sourceChain: 'Base' }],
+            targetChains: ['xlayer'],
+            yieldTargetApy: 0,
+            rebalanceFrequency: 'none',
+          },
+          policies: {
+            requireAudit: true,
+            minTvlUsd: 50000000,
+            maxSlippagePct: 0.5,
+            maxGasPerTxUsd: 5,
+            preferenceOrder: ['safety', 'yield', 'cost'],
+          },
+          isRecurring: true,
+          conditionalRules: [
+            {
+              conditions: [
+                { type: 'tvl_drop', params: { protocol: 'Aave', thresholdPct: 10 } },
+                { type: 'token_depeg', params: { token: 'USDC', pegLimit: 0.985 } }
+              ],
+              action: 'withdraw',
+              actionParams: { asset: 'USDC', sourceChain: 'Base', targetChain: 'xlayer' }
+            }
+          ]
+        } as unknown as T;
+      }
+      
+      if (lowerPrompt.includes('monday') || lowerPrompt.includes('gas') || lowerPrompt.includes('macro')) {
+        return {
+          type: 'portfolio_rebalancing',
+          goal: {
+            description: 'Every Monday, swap 50% yield to ETH, bridge to X Layer, buy OKB if mainnet gas < 20 gwei',
+            assets: [{ symbol: 'USDC', amount: 1000, sourceChain: 'Base' }],
+            targetChains: ['xlayer'],
+            yieldTargetApy: 0,
+            rebalanceFrequency: 'weekly',
+          },
+          policies: {
+            requireAudit: true,
+            minTvlUsd: 50000000,
+            maxSlippagePct: 0.5,
+            maxGasPerTxUsd: 5,
+            preferenceOrder: ['safety', 'yield', 'cost'],
+          },
+          isRecurring: true,
+          conditionalRules: [
+            {
+              conditions: [
+                { type: 'time_schedule', params: { schedule: 'Monday' } },
+                { type: 'gas_threshold', params: { gasLimitGwei: 20, chain: 'ethereum' } }
+              ],
+              action: 'swap',
+              actionParams: { asset: 'OKB', sourceChain: 'Base', targetChain: 'xlayer' }
+            }
+          ]
+        } as unknown as T;
+      }
+
       return {
         type: 'yield_optimization',
         goal: {
           description: isFailedPrompt ? 'Yield Optimization (Failure Injection Demo)' : 'Maximize stablecoin yield',
-          assets: [{ symbol: 'USDC', amount: 5000 }],
+          assets: [{ symbol: 'USDC', amount: 5000, sourceChain: 'Ethereum' }],
           targetChains: ['Ethereum', 'Base'],
           yieldTargetApy: 0.08,
           rebalanceFrequency: 'monthly',
@@ -43,6 +107,88 @@ export async function generateStructured<T>({
     
     // 2. Planning mock response
     if (prompt.includes('Generate an execution plan')) {
+      const lowerPrompt = prompt.toLowerCase();
+      
+      if (lowerPrompt.includes('defensive_guardrail') || lowerPrompt.includes('depeg') || lowerPrompt.includes('falls')) {
+        return {
+          tasks: [
+            {
+              id: 'task_01',
+              name: 'check_tvl',
+              dependencies: [],
+              params: { protocol: 'Aave', thresholdPct: 10 },
+            },
+            {
+              id: 'task_02',
+              name: 'check_depeg',
+              dependencies: [],
+              params: { token: 'USDC', pegLimit: 0.985 },
+            },
+            {
+              id: 'task_03',
+              name: 'withdraw',
+              dependencies: ['task_01', 'task_02'],
+              params: { asset: 'USDC', sourceChain: 'Base' },
+            },
+            {
+              id: 'task_03_exit_guard',
+              name: 'check_exit_liquidity',
+              dependencies: ['task_03'],
+              params: { asset: 'USDC', amount: 5000, targetChain: 'xlayer' },
+            },
+            {
+              id: 'task_04',
+              name: 'bridge',
+              dependencies: ['task_03_exit_guard'],
+              params: { asset: 'USDC', amount: 5000, sourceChain: 'Base', targetChain: 'xlayer' },
+            },
+          ],
+        } as unknown as T;
+      }
+      
+      if (lowerPrompt.includes('monday') || lowerPrompt.includes('gas_threshold') || lowerPrompt.includes('gas')) {
+        return {
+          tasks: [
+            {
+              id: 'task_01',
+              name: 'check_gas',
+              dependencies: [],
+              params: { gasLimitGwei: 20, chain: 'ethereum' },
+            },
+            {
+              id: 'task_02',
+              name: 'check_balances',
+              dependencies: ['task_01'],
+              params: { asset: 'USDC', sourceChain: 'Base' },
+            },
+            {
+              id: 'task_03_exit_guard',
+              name: 'check_exit_liquidity',
+              dependencies: ['task_02'],
+              params: { asset: 'USDC', amount: 1000, targetChain: 'Base' },
+            },
+            {
+              id: 'task_03',
+              name: 'swap',
+              dependencies: ['task_03_exit_guard'],
+              params: { asset: 'ETH', sourceChain: 'Base' },
+            },
+            {
+              id: 'task_04',
+              name: 'bridge',
+              dependencies: ['task_03'],
+              params: { asset: 'ETH', amount: 500, sourceChain: 'Base', targetChain: 'xlayer' },
+            },
+            {
+              id: 'task_05',
+              name: 'swap',
+              dependencies: ['task_04'],
+              params: { asset: 'OKB', sourceChain: 'xlayer' },
+            },
+          ],
+        } as unknown as T;
+      }
+
       return {
         tasks: [
           {
@@ -58,9 +204,15 @@ export async function generateStructured<T>({
             params: { asset: 'USDC', amount: 5000, sourceChain: 'Ethereum', targetChain: 'Base' },
           },
           {
+            id: 'task_02_exit_guard',
+            name: 'check_exit_liquidity',
+            dependencies: ['task_02'],
+            params: { asset: 'USDC', amount: 5000, targetChain: 'Base' },
+          },
+          {
             id: 'task_03',
             name: 'deposit',
-            dependencies: ['task_02'],
+            dependencies: ['task_02_exit_guard'],
             params: { asset: 'USDC', amount: 5000, targetChain: 'Base', targetApy: 0.08 },
           },
         ],

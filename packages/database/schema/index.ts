@@ -54,6 +54,7 @@ export const intents = pgTable('intents', {
     preferenceOrder?: string[];
   }>().notNull(),
   isRecurring: boolean('is_recurring').default(false).notNull(),
+  conditionalRules: jsonb('conditional_rules').$type<any[]>(),
   nextExecution: timestamp('next_execution'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
