@@ -31,167 +31,142 @@ interface ExecutionTimelineProps {
 }
 
 export default function ExecutionTimeline({ tasks, auditLogs, explanation }: ExecutionTimelineProps) {
-  // Find bid event details for rendering bidding logs
   const bidEvents = auditLogs.filter((log) => log.event === 'agent_selected');
 
   return (
-    <div className="space-y-6">
-      {/* 1. Plain-English Explainability Alert */}
+    <div className="space-y-4">
+      {/* Explainability summary */}
       {explanation && (
-        <div className="p-5 bg-surface-deep border border-border rounded-lg animate-in slide-in-from-bottom duration-300">
-          <div className="flex items-start space-x-3">
-            <div className="p-2 bg-surface-muted text-primary rounded-md border border-border">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-primary">{explanation.title || 'Execution Summary'}</h3>
-              <p className="text-xs text-gray-light leading-relaxed">{explanation.summary}</p>
+        <div className="border border-[#1c1c1e] p-5">
+          <div className="flex items-start gap-4">
+            <ShieldCheck className="w-4 h-4 text-[#71717a] mt-0.5 flex-shrink-0" />
+            <div className="space-y-1 min-w-0">
+              <h3 className="font-serif text-sm text-[#f4f4f5]">{explanation.title || 'Execution Summary'}</h3>
+              <p className="text-[11px] font-sans text-[#71717a] leading-relaxed">{explanation.summary}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* 2. Main execution steps list */}
-      <div className="bg-card border border-border rounded-lg p-6 relative">
-        <h2 className="text-base font-bold text-white mb-6 flex items-center gap-2">
-          <Server className="w-5 h-5 text-primary" />
-          <span>Execution Graph Timeline</span>
-        </h2>
+      {/* Timeline */}
+      <div className="border border-[#1c1c1e]">
+        <div className="flex items-center gap-2 border-b border-[#1c1c1e] px-6 py-4">
+          <Server className="w-3.5 h-3.5 text-[#71717a]" />
+          <h2 className="font-serif text-base text-[#f4f4f5]">Execution Graph Timeline</h2>
+        </div>
 
-        <div className="relative border-l border-border pl-6 ml-3 space-y-8">
+        <div className="relative border-l border-[#1c1c1e] ml-[3.25rem] divide-y divide-[#1c1c1e]">
           {tasks.map((task) => {
             const isCompleted = task.status === 'completed';
             const isExecuting = task.status === 'executing' || task.status === 'bidding';
             const isFailed = task.status === 'failed';
-
-            // Find matching selection logs for this task
             const selectionLog = bidEvents.find((log) => log.details?.taskId === task.id);
             const evaluations = selectionLog?.details?.evaluations || [];
 
             return (
-              <div key={task.id} className="relative group animate-in fade-in duration-300">
-                {/* Node icon indicators */}
-                <div className="absolute -left-[35px] top-0.5">
+              <div key={task.id} className="relative px-6 py-5">
+                {/* Node marker */}
+                <div className="absolute -left-[1.6rem] top-5 w-[1.2rem] h-[1.2rem] border border-[#1c1c1e] bg-[#000000] flex items-center justify-center">
                   {isCompleted ? (
-                    <div className="p-1 bg-black border border-emerald-500 text-emerald-400 rounded-full">
-                      <CheckCircle2 className="w-4 h-4 fill-emerald-500/10" />
-                    </div>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
                   ) : isFailed ? (
-                    <div className="p-1 bg-black border border-red-500 text-red-400 rounded-full">
-                      <AlertTriangle className="w-4 h-4 fill-red-500/10" />
-                    </div>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />
                   ) : isExecuting ? (
-                    <div className="p-1 bg-black border border-primary text-primary rounded-full animate-pulse">
-                      <Circle className="w-4 h-4 fill-primary/10" />
-                    </div>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#abd600] animate-pulse" />
                   ) : (
-                    <div className="p-1 bg-black border border-border text-gray-light rounded-full">
-                      <Circle className="w-4 h-4" />
-                    </div>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#3f3f46]" />
                   )}
                 </div>
 
-                {/* Node details */}
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-bold text-white capitalize font-sans">
-                      {task.name.replace('_', ' ')}
-                    </span>
-                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider font-mono ${
-                      isCompleted 
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                        : isFailed 
-                        ? 'bg-red-500/10 text-red-400 border border-red-500/20' 
-                        : isExecuting 
-                        ? 'bg-primary/10 text-primary border border-primary/20 animate-pulse'
-                        : 'bg-surface-muted border border-border text-gray-light'
-                    }`}>
-                      {task.status}
-                    </span>
-                  </div>
+                {/* Task header */}
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                  <span className="text-sm font-sans font-medium text-[#f4f4f5] capitalize">
+                    {task.name.replace('_', ' ')}
+                  </span>
+                  <span className={`text-[9px] font-mono uppercase tracking-[0.1em] ${
+                    isCompleted ? 'text-[#22c55e]'
+                    : isFailed ? 'text-[#ef4444]'
+                    : isExecuting ? 'text-[#abd600]'
+                    : 'text-[#52525b]'
+                  }`}>
+                    {task.status}
+                  </span>
+                </div>
 
-                  {/* Task details */}
-                  {isCompleted && task.winningAgentId && (
-                    <div className="text-xs text-gray-light space-y-1 bg-surface-deep p-3 rounded-md border border-border font-sans">
-                      <div className="flex items-center justify-between text-gray-light text-[10px]">
-                        <span>Executing Agent:</span>
-                        <span className="text-primary font-bold font-mono">{task.winningAgentId}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-gray-light text-[10px]">
-                        <span>Fee Charged:</span>
-                        <span className="text-white font-bold font-mono">${task.bidAmount}</span>
-                      </div>
-                      {task.txHash && (
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-gray-light">Transaction Hash:</span>
-                          <span className="text-white font-mono select-all truncate max-w-[150px]">{task.txHash}</span>
-                        </div>
-                      )}
+                {/* Completed details */}
+                {isCompleted && task.winningAgentId && (
+                  <div className="border border-[#1c1c1e] divide-y divide-[#1c1c1e] text-[10px] font-mono mb-3">
+                    <div className="flex justify-between px-3 py-2">
+                      <span className="text-[#71717a]">Executing Agent</span>
+                      <span className="text-[#abd600]">{task.winningAgentId}</span>
                     </div>
-                  )}
-
-                  {/* Auction bidding logging */}
-                  {evaluations.length > 0 && (
-                    <div className="mt-3 p-3.5 bg-surface-deep border border-border rounded-md space-y-3">
-                      <div className="text-[9px] font-bold text-primary tracking-wider uppercase font-mono flex items-center justify-between">
-                        <span>Agent Bidding Auction results</span>
-                        <span className="text-gray-light font-normal">Decision scoring</span>
+                    <div className="flex justify-between px-3 py-2">
+                      <span className="text-[#71717a]">Fee Charged</span>
+                      <span className="text-[#f4f4f5]">${task.bidAmount}</span>
+                    </div>
+                    {task.txHash && (
+                      <div className="flex justify-between px-3 py-2">
+                        <span className="text-[#71717a]">Tx Hash</span>
+                        <span className="text-[#f4f4f5] select-all truncate max-w-[160px]">{task.txHash}</span>
                       </div>
-                      
-                      <div className="space-y-2">
-                        {evaluations.map((bid: any) => (
-                          <div key={bid.agentId} className={`flex flex-col p-2.5 rounded border ${
-                            bid.agentId === task.winningAgentId 
-                              ? 'bg-primary/5 border-primary/20' 
-                              : bid.rejected 
-                              ? 'bg-destructive/5 border-destructive/20 opacity-70'
-                              : 'bg-surface-muted/50 border-border'
-                          }`}>
-                            <div className="flex justify-between items-center text-xs">
-                              <span className="font-bold text-white font-sans">{bid.agentId}</span>
-                              {bid.rejected ? (
-                                <span className="text-[9px] text-destructive flex items-center gap-1 font-bold bg-destructive/10 px-2 py-0.5 rounded border border-destructive/20 font-mono">
-                                  <ShieldAlert className="w-3 h-3" /> Policy Blocked
-                                </span>
-                              ) : (
-                                <span className={`text-[9px] font-mono font-bold ${
-                                  bid.agentId === task.winningAgentId ? 'text-primary' : 'text-gray-light'
-                                }`}>
-                                  Score: {bid.score}/100
-                                </span>
-                              )}
-                            </div>
+                    )}
+                  </div>
+                )}
 
+                {/* Auction results */}
+                {evaluations.length > 0 && (
+                  <div className="border border-[#1c1c1e] space-y-0">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-[#1c1c1e]">
+                      <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-[#71717a]">Bidding Auction</span>
+                      <span className="text-[9px] font-mono text-[#52525b]">Decision scoring</span>
+                    </div>
+                    <div className="divide-y divide-[#1c1c1e]">
+                      {evaluations.map((bid: any) => (
+                        <div key={bid.agentId} className={`px-4 py-3 ${bid.agentId === task.winningAgentId ? 'bg-[#abd600]/3' : ''}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-sans font-medium text-[#f4f4f5]">{bid.agentId}</span>
                             {bid.rejected ? (
-                              <p className="text-[10px] text-gray-light mt-1 leading-relaxed font-sans">{bid.reason}</p>
+                              <span className="text-[9px] font-mono text-[#ef4444] flex items-center gap-1">
+                                <ShieldAlert className="w-3 h-3" /> Policy Blocked
+                              </span>
                             ) : (
-                              <div className="grid grid-cols-5 gap-1 text-[9px] mt-2 pt-2 border-t border-border text-gray-light font-mono">
-                                <div>Rep: <span className="text-white font-bold">{bid.breakdown.reputation}</span></div>
-                                <div>Risk: <span className="text-white font-bold">{bid.breakdown.protocolRisk}</span></div>
-                                <div>Liq: <span className="text-white font-bold">{bid.breakdown.liquidity}</span></div>
-                                <div>Slip: <span className="text-white font-bold">{bid.breakdown.slippage}</span></div>
-                                <div>Cost: <span className="text-white font-bold">{bid.breakdown.cost}</span></div>
-                              </div>
+                              <span className={`text-[9px] font-mono ${bid.agentId === task.winningAgentId ? 'text-[#abd600]' : 'text-[#71717a]'}`}>
+                                {bid.agentId === task.winningAgentId ? '✓ Selected · ' : ''}Score: {bid.score}/100
+                              </span>
                             )}
                           </div>
-                        ))}
-                      </div>
-
-                      {selectionLog?.details?.reasoning && (
-                        <p className="text-[10px] text-gray-light leading-relaxed italic mt-1.5 border-l-2 border-primary pl-2 font-sans">
-                          &quot;{selectionLog.details.reasoning}&quot;
+                          {bid.rejected ? (
+                            <p className="text-[10px] font-sans text-[#71717a] leading-relaxed">{bid.reason}</p>
+                          ) : (
+                            <div className="grid grid-cols-5 gap-2 text-[9px] font-mono text-[#52525b]">
+                              {['reputation', 'protocolRisk', 'liquidity', 'slippage', 'cost'].map((k) => (
+                                <div key={k}>
+                                  <span className="block capitalize text-[8px] mb-0.5">{k.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                  <span className="text-[#a1a1aa]">{bid.breakdown?.[k]}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {selectionLog?.details?.reasoning && (
+                      <div className="border-t border-[#1c1c1e] px-4 py-3">
+                        <p className="text-[10px] font-sans text-[#71717a] leading-relaxed italic">
+                          "{selectionLog.details.reasoning}"
                         </p>
-                      )}
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                  {isFailed && task.errorReason && (
-                    <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs rounded-md flex items-start gap-2">
-                      <ShieldAlert className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                      <span className="font-sans">{task.errorReason}</span>
-                    </div>
-                  )}
-                </div>
+                {/* Failed reason */}
+                {isFailed && task.errorReason && (
+                  <div className="border border-[#ef4444]/20 bg-[#1a0000] p-3 flex items-start gap-2">
+                    <ShieldAlert className="w-3.5 h-3.5 text-[#ef4444] flex-shrink-0 mt-0.5" />
+                    <span className="text-[10px] font-sans text-[#ef4444] leading-relaxed">{task.errorReason}</span>
+                  </div>
+                )}
               </div>
             );
           })}

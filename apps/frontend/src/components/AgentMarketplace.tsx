@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Award, Zap, Activity, Users, Star } from 'lucide-react';
+import { Activity, Zap, Star } from 'lucide-react';
 
 interface Agent {
   id: string;
@@ -21,84 +21,74 @@ interface AgentMarketplaceProps {
 
 export default function AgentMarketplace({ agents }: AgentMarketplaceProps) {
   return (
-    <div className="bg-card border border-border rounded-lg p-6 relative overflow-hidden">
-      <div className="flex items-center space-x-2 mb-6">
-        <Users className="w-5 h-5 text-primary" />
-        <h2 className="text-base font-bold tracking-tight text-white">Agent Marketplace Leaderboard</h2>
+    <div className="border border-[#1c1c1e]">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-[#1c1c1e] px-6 py-4">
+        <div>
+          <h2 className="font-serif text-base text-[#f4f4f5]">Agent Leaderboard</h2>
+          <p className="text-[10px] font-mono text-[#71717a] mt-0.5">{agents.length} registered solvers</p>
+        </div>
+        <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-[#71717a]">Ranked by reputation</span>
       </div>
 
-      <div className="space-y-4">
-        {agents.map((agent, index) => {
-          const repScore = parseFloat(agent.reputationScore);
-          const successRate = parseFloat(agent.successRatePct);
-          const rank = index + 1;
+      {/* Column headings */}
+      <div className="grid grid-cols-[1.5rem_1fr_4rem_4rem_4.5rem] gap-4 px-6 py-2 border-b border-[#1c1c1e]">
+        {['#', 'Agent', 'Rep', 'Success', 'Volume'].map((col) => (
+          <span key={col} className="text-[9px] font-mono uppercase tracking-[0.12em] text-[#52525b]">{col}</span>
+        ))}
+      </div>
 
+      {/* Rows */}
+      <div className="divide-y divide-[#1c1c1e]">
+        {agents.map((agent, index) => {
+          const rank = index + 1;
           return (
             <div
               key={agent.id}
-              className="p-4 bg-surface-deep border border-border rounded-md flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all"
+              className="grid grid-cols-[1.5rem_1fr_4rem_4rem_4.5rem] gap-4 items-center px-6 py-4 hover:bg-[#09090b] transition-colors duration-100"
             >
-              {/* Left Rank & Agent Identity */}
-              <div className="flex items-center space-x-4">
-                <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-sm select-none ${
-                  rank === 1 
-                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono' 
-                    : rank === 2 
-                    ? 'bg-slate-300/10 text-slate-300 border border-slate-300/20 font-mono'
-                    : 'bg-surface-muted text-gray-light border border-border font-mono'
-                }`}>
-                  #{rank}
+              {/* Rank */}
+              <span className={`font-serif text-sm leading-none ${
+                rank === 1 ? 'text-[#f4f4f5]' : 'text-[#52525b]'
+              }`}>
+                {rank}
+              </span>
+
+              {/* Identity */}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[11px] font-sans font-medium text-[#f4f4f5] truncate">{agent.name}</span>
+                  {agent.active && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] flex-shrink-0" title="Active" />
+                  )}
                 </div>
-                
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white font-sans">{agent.name}</span>
-                    <span className="text-[9px] font-mono text-gray-light">({agent.id})</span>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-1.5">
-                    {agent.capabilities.map((cap) => (
-                      <span
-                        key={cap}
-                        className="text-[9px] px-2 py-0.5 rounded border border-border font-bold uppercase bg-surface-muted text-primary font-mono"
-                      >
-                        {cap}
-                      </span>
-                    ))}
-                    <span className="text-[9px] font-mono text-gray-light truncate max-w-[100px] md:max-w-none">
-                      {agent.walletAddress}
+                <div className="flex flex-wrap gap-1">
+                  {agent.capabilities.slice(0, 3).map((cap) => (
+                    <span key={cap} className="text-[8px] font-mono px-1.5 py-0.5 border border-[#1c1c1e] text-[#71717a] uppercase">
+                      {cap}
                     </span>
-                  </div>
+                  ))}
+                  {agent.capabilities.length > 3 && (
+                    <span className="text-[8px] font-mono text-[#52525b]">+{agent.capabilities.length - 3}</span>
+                  )}
                 </div>
               </div>
 
-              {/* Right Performance Stats */}
-              <div className="grid grid-cols-3 gap-6 text-right">
-                <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-gray-light uppercase block tracking-wider font-mono">Reputation</span>
-                  <div className="flex items-center justify-end gap-1">
-                    <Star className="w-3 h-3 text-primary fill-primary/10" />
-                    <span className="text-xs font-bold text-primary font-mono">{(repScore).toFixed(1)}%</span>
-                  </div>
-                </div>
+              {/* Reputation */}
+              <div className="text-right">
+                <span className="font-mono text-xs text-[#abd600]">{parseFloat(agent.reputationScore).toFixed(0)}%</span>
+              </div>
 
-                <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-gray-light uppercase block tracking-wider font-mono">Success</span>
-                  <div className="flex items-center justify-end gap-1">
-                    <Zap className="w-3 h-3 text-emerald-400" />
-                    <span className="text-xs font-bold text-emerald-400 font-mono">{(successRate).toFixed(1)}%</span>
-                  </div>
-                </div>
+              {/* Success */}
+              <div className="text-right">
+                <span className="font-mono text-xs text-[#22c55e]">{parseFloat(agent.successRatePct).toFixed(0)}%</span>
+              </div>
 
-                <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-gray-light uppercase block tracking-wider font-mono">Volume</span>
-                  <div className="flex items-center justify-end gap-1">
-                    <Activity className="w-3 h-3 text-white" />
-                    <span className="text-xs font-bold text-white font-mono">
-                      ${(parseFloat(agent.totalVolumeUsd) / 1000000).toFixed(1)}M
-                    </span>
-                  </div>
-                </div>
+              {/* Volume */}
+              <div className="text-right">
+                <span className="font-mono text-xs text-[#f4f4f5]">
+                  ${(parseFloat(agent.totalVolumeUsd) / 1000000).toFixed(1)}M
+                </span>
               </div>
             </div>
           );

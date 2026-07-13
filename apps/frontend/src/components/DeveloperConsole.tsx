@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Cpu, Globe, Wallet, ShieldCheck, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Cpu, Wallet, Globe } from 'lucide-react';
 
 interface DeveloperConsoleProps {
   onAgentRegistered?: () => void;
   showNotification?: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
+
+const CAPABILITIES = ['bridge', 'yield', 'swap', 'check_gas', 'check_tvl', 'check_depeg'];
 
 export default function DeveloperConsole({ onAgentRegistered, showNotification }: DeveloperConsoleProps) {
   const [id, setId] = useState('');
@@ -17,11 +19,9 @@ export default function DeveloperConsole({ onAgentRegistered, showNotification }
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const toggleCapability = (cap: string) => {
-    if (capabilities.includes(cap)) {
-      setCapabilities(capabilities.filter(c => c !== cap));
-    } else {
-      setCapabilities([...capabilities, cap]);
-    }
+    setCapabilities((prev) =>
+      prev.includes(cap) ? prev.filter((c) => c !== cap) : [...prev, cap]
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,150 +30,150 @@ export default function DeveloperConsole({ onAgentRegistered, showNotification }
       if (showNotification) showNotification('Please fill all fields and select at least one capability.', 'error');
       return;
     }
-
     setIsSubmitting(true);
     try {
       const res = await fetch('http://localhost:4000/api/agents', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id,
-          name,
-          walletAddress,
-          endpoint,
-          capabilities,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name, walletAddress, endpoint, capabilities }),
       });
-
       if (res.ok) {
         if (showNotification) showNotification(`Agent '${name}' successfully registered on-chain!`, 'success');
-        // Reset form
-        setId('');
-        setName('');
-        setWalletAddress('');
-        setEndpoint('');
-        setCapabilities([]);
+        setId(''); setName(''); setWalletAddress(''); setEndpoint(''); setCapabilities([]);
         if (onAgentRegistered) onAgentRegistered();
       } else {
         const data = await res.json();
         throw new Error(data.error || 'Failed to register agent');
       }
     } catch (err: any) {
-      console.error('Error registering agent:', err);
       if (showNotification) showNotification(err.message || 'Error registering agent', 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="bg-card border border-border rounded-lg p-6 space-y-6 relative overflow-hidden transition-all duration-300">
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e2329_1px,transparent_1px),linear-gradient(to_bottom,#1e2329_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-10 pointer-events-none" />
+  const inputClass = "w-full bg-[#000000] border border-[#1c1c1e] px-4 py-2.5 text-[11px] text-[#f4f4f5] placeholder-[#3f3f46] focus:outline-none focus:border-[#3f3f46] transition-colors duration-150";
 
-      <div className="flex items-center justify-between border-b border-border pb-3 relative z-10">
-        <div className="flex items-center space-x-2">
-          <Sparkles className="w-5 h-5 text-primary animate-pulse" />
-          <h2 className="text-base font-bold tracking-tight text-white font-sans">Specialist Agent Registry</h2>
+  return (
+    <div className="border border-[#1c1c1e]">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-[#1c1c1e] px-6 py-4">
+        <div>
+          <h2 className="font-serif text-base text-[#f4f4f5]">Specialist Agent Registry</h2>
+          <p className="text-[10px] font-mono text-[#71717a] mt-0.5">
+            Register your solver to start bidding on intent DAGs
+          </p>
         </div>
-        <span className="text-[9px] px-2 py-0.5 rounded bg-surface-muted text-primary font-bold uppercase border border-border font-mono">
+        <span className="text-[9px] font-mono uppercase tracking-[0.12em] text-[#abd600] border border-[#abd600]/30 px-2 py-1">
           Developer Mode
         </span>
       </div>
 
-      <p className="text-[11px] text-gray-light leading-relaxed font-sans relative z-10">
-        Register your autonomous specialist agent to start bidding on user financial task DAGs. Verified agents accrue reputation and split 0.5% coordination fees on-chain.
-      </p>
+      <div className="p-6">
+        <p className="text-[11px] font-sans text-[#71717a] leading-relaxed mb-6">
+          Verified agents accrue on-chain reputation and receive a 0.5% coordination fee split
+          upon successful settlement proof verification.
+        </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4 relative z-10 text-xs font-sans">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-gray-light font-bold">Agent Unique ID</label>
-            <input
-              type="text"
-              value={id}
-              onChange={(e) => setId(e.target.value)}
-              placeholder="e.g., lido-yield-agent"
-              className="w-full bg-surface-deep border border-border rounded p-2.5 text-white placeholder-gray-medium focus:outline-none focus:border-primary font-mono"
-            />
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Fields grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono text-[#71717a] uppercase tracking-[0.1em]">Agent Unique ID</label>
+              <input
+                id="agent-id-input"
+                type="text"
+                value={id}
+                onChange={(e) => setId(e.target.value)}
+                placeholder="e.g. lido-yield-agent"
+                className={`${inputClass} font-mono`}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono text-[#71717a] uppercase tracking-[0.1em]">Display Name</label>
+              <input
+                id="agent-name-input"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Lido Yield Optimizer"
+                className={inputClass}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono text-[#71717a] uppercase tracking-[0.1em] flex items-center gap-1.5">
+                <Wallet className="w-3 h-3" /> Payout Wallet
+              </label>
+              <input
+                id="agent-wallet-input"
+                type="text"
+                value={walletAddress}
+                onChange={(e) => setWalletAddress(e.target.value)}
+                placeholder="0x…"
+                className={`${inputClass} font-mono`}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono text-[#71717a] uppercase tracking-[0.1em] flex items-center gap-1.5">
+                <Globe className="w-3 h-3" /> Webhook Endpoint
+              </label>
+              <input
+                id="agent-endpoint-input"
+                type="text"
+                value={endpoint}
+                onChange={(e) => setEndpoint(e.target.value)}
+                placeholder="https://your-agent.api/rfq"
+                className={`${inputClass} font-mono`}
+              />
+            </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-gray-light font-bold">Display Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Lido Yield Optimizer"
-              className="w-full bg-surface-deep border border-border rounded p-2.5 text-white placeholder-gray-medium focus:outline-none focus:border-primary"
-            />
+          {/* Capabilities */}
+          <div className="space-y-2.5">
+            <label className="text-[10px] font-mono text-[#71717a] uppercase tracking-[0.1em]">Agent Capabilities</label>
+            <div className="flex flex-wrap gap-2">
+              {CAPABILITIES.map((cap) => {
+                const selected = capabilities.includes(cap);
+                return (
+                  <button
+                    key={cap}
+                    type="button"
+                    id={`cap-${cap}`}
+                    onClick={() => toggleCapability(cap)}
+                    className={`px-3 py-1.5 text-[10px] font-mono uppercase border transition-colors duration-150 ${
+                      selected
+                        ? 'border-[#abd600]/50 text-[#abd600] bg-[#abd600]/5'
+                        : 'border-[#1c1c1e] text-[#71717a] hover:border-[#3f3f46] hover:text-[#a1a1aa]'
+                    }`}
+                  >
+                    {selected ? '✓ ' : ''}{cap.replace('_', ' ')}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-gray-light font-bold">Payout Wallet Address</label>
-            <input
-              type="text"
-              value={walletAddress}
-              onChange={(e) => setWalletAddress(e.target.value)}
-              placeholder="0x..."
-              className="w-full bg-surface-deep border border-border rounded p-2.5 text-white placeholder-gray-medium focus:outline-none focus:border-primary font-mono"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-gray-light font-bold">Bidding Webhook Endpoint</label>
-            <input
-              type="text"
-              value={endpoint}
-              onChange={(e) => setEndpoint(e.target.value)}
-              placeholder="https://your-agent.api/rfq"
-              className="w-full bg-surface-deep border border-border rounded p-2.5 text-white placeholder-gray-medium focus:outline-none focus:border-primary font-mono"
-            />
-          </div>
-        </div>
-
-        {/* Capabilities tags Selection */}
-        <div className="space-y-2">
-          <label className="text-gray-light font-bold">Agent Capabilities</label>
-          <div className="flex flex-wrap gap-2">
-            {['bridge', 'yield', 'swap', 'check_gas', 'check_tvl', 'check_depeg'].map((cap) => {
-              const isSelected = capabilities.includes(cap);
-              return (
-                <button
-                  type="button"
-                  key={cap}
-                  onClick={() => toggleCapability(cap)}
-                  className={`px-3 py-1.5 rounded-full border text-[10px] font-bold font-mono transition-all uppercase ${
-                    isSelected
-                      ? 'bg-primary/20 border-primary text-primary'
-                      : 'bg-surface-deep border-border text-gray-light hover:border-gray-medium'
-                  }`}
-                >
-                  {cap.replace('_', ' ')}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full py-3 bg-primary hover:bg-lime-bright text-black font-bold rounded text-xs transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md uppercase"
-        >
-          {isSubmitting ? (
-            <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-          ) : (
-            <>
-              <Cpu className="w-4 h-4" />
-              <span>Register On-Chain Solver Agent</span>
-            </>
-          )}
-        </button>
-      </form>
+          {/* Submit */}
+          <button
+            id="register-agent-btn"
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-3.5 bg-[#f4f4f5] text-[#000000] font-sans font-semibold text-sm hover:bg-white transition-colors duration-150 flex items-center justify-center gap-2.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <>
+                <span className="w-4 h-4 border border-[#000000] border-t-transparent rounded-full animate-spin" />
+                Registering…
+              </>
+            ) : (
+              <>
+                <Cpu className="w-4 h-4" />
+                Register On-Chain Solver Agent
+              </>
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
