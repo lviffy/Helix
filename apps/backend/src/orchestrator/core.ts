@@ -423,7 +423,7 @@ export async function executeIntent(
           });
 
           // Fetch agent wallet address to perform on-chain settlement fee split
-          let agentWallet = '0xDef0000000000000000000000000000000000001'; // fallback
+          let agentWallet = '0xdef0000000000000000000000000000000000001'; // fallback
           if (selectedAgentId) {
             const agentRecord = await db.query.agents.findFirst({
               where: eq(agents.id, selectedAgentId),

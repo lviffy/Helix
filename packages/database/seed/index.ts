@@ -33,7 +33,7 @@ async function seed() {
   const mockAgents = [
     {
       id: 'stargate-bridge-agent',
-      walletAddress: '0xDef0000000000000000000000000000000000001',
+      walletAddress: '0xdef0000000000000000000000000000000000001',
       name: 'Stargate Bridge Agent',
       capabilities: ['bridge'],
       endpoint: 'http://localhost:4000/agents/stargate-bridge',
@@ -44,7 +44,7 @@ async function seed() {
     },
     {
       id: 'curve-bridge-agent',
-      walletAddress: '0xDef0000000000000000000000000000000000002',
+      walletAddress: '0xdef0000000000000000000000000000000000002',
       name: 'Curve Bridge Agent',
       capabilities: ['bridge'],
       endpoint: 'http://localhost:4000/agents/curve-bridge',
@@ -55,7 +55,7 @@ async function seed() {
     },
     {
       id: 'celer-bridge-agent',
-      walletAddress: '0xDef0000000000000000000000000000000000003',
+      walletAddress: '0xdef0000000000000000000000000000000000003',
       name: 'Celer Bridge Agent',
       capabilities: ['bridge'],
       endpoint: 'http://localhost:4000/agents/celer-bridge',
@@ -66,7 +66,7 @@ async function seed() {
     },
     {
       id: 'aave-yield-agent',
-      walletAddress: '0xDef0000000000000000000000000000000000004',
+      walletAddress: '0xdef0000000000000000000000000000000000004',
       name: 'Aave Yield Optimizer Agent',
       capabilities: ['yield'],
       endpoint: 'http://localhost:4000/agents/aave-yield',
@@ -77,7 +77,7 @@ async function seed() {
     },
     {
       id: 'compound-yield-agent',
-      walletAddress: '0xDef0000000000000000000000000000000000005',
+      walletAddress: '0xdef0000000000000000000000000000000000005',
       name: 'Compound Yield Optimizer Agent',
       capabilities: ['yield'],
       endpoint: 'http://localhost:4000/agents/compound-yield',
@@ -88,7 +88,7 @@ async function seed() {
     },
     {
       id: 'helix-oracle-agent',
-      walletAddress: '0xDef0000000000000000000000000000000000006',
+      walletAddress: '0xdef0000000000000000000000000000000000006',
       name: 'Helix Telemetry Oracle Agent',
       capabilities: ['check_gas', 'check_tvl', 'check_depeg'],
       endpoint: 'http://localhost:4000/agents/helix-oracle',
