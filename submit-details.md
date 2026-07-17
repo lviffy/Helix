@@ -9,7 +9,7 @@
 - **Name**: Helix — The Financial Operating System for Autonomous AI Agents
 - **Team**: Solo
 - **Category**: DeFi / AI Agent Infrastructure
-- **Live Demo**: http://localhost:3000 (local) | TBD (hosted)
+- **Live Demo**: http://localhost:3000 (local) | https://helix.rohanm.in (hosted)
 - **Repo**: https://github.com/lviffy/OKX
 - **Registered Agent ID**: `#6197`
 - **Agent Owner Address**: `0xd04aacbf6ef8632ac97d7c47b4969e1770f094de`
@@ -24,7 +24,7 @@ Helix has been successfully registered on-chain as an ASP supporting both **A2MC
 ### Registered Services
 1. **DeFi Telemetry and ExitGuard** (A2MCP - Automated API)
    * **Fee**: `0.05 USDT` per call (Gated via EIP-3009 payment signature)
-   * **Endpoint**: `https://helix-mcp.finance/api/mcp`
+   * **Endpoint**: `https://helix.rohanm.in/api/mcp`
 2. **Helix Intent Solver** (A2A - Negotiated Task)
    * **Fee**: `0.10 USDT` (Escrow held on X Layer, settled upon milestone delivery)
 
@@ -41,7 +41,7 @@ onchainos agent profile 6197
 ## Demo Script (90-Second Video)
 
 ### Scene 1 — Landing Page (0:00–0:10)
-- Show **helix.finance** landing page
+- Show **helix.rohanm.in** landing page
 - Briefly: "Helix is the Financial Operating System for AI agents — natural language intents, settled autonomously on X Layer"
 
 ### Scene 2 — Intent Builder (0:10–0:30)

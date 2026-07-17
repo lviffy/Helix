@@ -1,4 +1,4 @@
-import { createWalletClient, createPublicClient, http, keccak256, toBytes, parseEther, defineChain } from 'viem';
+import { createWalletClient, createPublicClient, http, fallback, keccak256, toBytes, parseEther, defineChain } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -32,17 +32,20 @@ if (SIMULATION_MODE) {
 
 const account = PRIVATE_KEY ? privateKeyToAccount(PRIVATE_KEY) : undefined;
 
+const primaryRpc = process.env.XLAYER_TESTNET_RPC || 'https://testrpc.xlayer.tech';
+const backupRpc = 'https://xlayertestrpc.okx.com';
+
 const walletClient = account
   ? createWalletClient({
       account,
       chain: xlayerTestnet,
-      transport: http(process.env.XLAYER_TESTNET_RPC || 'https://testrpc.xlayer.tech'),
+      transport: fallback([http(primaryRpc), http(backupRpc)]),
     })
   : null;
 
 const publicClient = createPublicClient({
   chain: xlayerTestnet,
-  transport: http(process.env.XLAYER_TESTNET_RPC || 'https://testrpc.xlayer.tech'),
+  transport: fallback([http(primaryRpc), http(backupRpc)]),
 });
 
 /** Returns a fake but formatted tx hash for simulation mode */

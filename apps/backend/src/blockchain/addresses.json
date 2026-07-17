@@ -1,10 +1,10 @@
 {
   "_note": "Replace with real X Layer Testnet addresses after running: forge script script/Deploy.s.sol --rpc-url xlayer-testnet --private-key $DEPLOYER_PRIVATE_KEY --broadcast",
   "_explorer": "https://www.oklink.com/xlayer-test",
-  "agentRegistry": "0x5010410507804F4FE3D6b7Ec220BdDA0b10BD3C5",
-  "reputation":    "0x4DEA591068D6F486727a018A6f673d164c8ddD8e",
-  "escrow":        "0x80865dc58C8D2DED710bB34e050166f8427D6970",
-  "treasury":      "0xa5766fC95BB973B51bE53731Bb20256fe5cF8AC3",
-  "settlement":    "0x0EB30bC827b43CD578adf7b0AF03F8b3B3bB6DB0",
-  "intentStorage": "0x7feAb2Fe7DdB24556dD58da5C674cC188865534a"
+  "agentRegistry": "0x9b298cAa3bB4f391f9cd2068610b269fE4aA64E6",
+  "reputation":    "0x96EeF2Bfa0FF392Fd96adD3B4B38ad31afC6834b",
+  "escrow":        "0xfF91996094C010aFeCe5E7A88E26bF12D51f93e6",
+  "treasury":      "0xaEf7A7E78474411D35307FCC3310A9600e84C10d",
+  "settlement":    "0xDc4c1CabE5a0AeC1D1D41168a2d6bA515679Bfa4",
+  "intentStorage": "0x8313C7256118B8f4aF63cb8c66853FA5AdA2De74"
 }

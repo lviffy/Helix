@@ -57,9 +57,9 @@ contract Deploy is Script {
         console.log("[5/5] Settlement:", address(settlement));
 
         // Register 3 mock specialist agents
-        registry.registerAgent("stargate-bridge-agent", 0xdEF0000000000000000000000000000000000001, "https://agents.helix.finance/stargate");
-        registry.registerAgent("curve-yield-agent",     0xDEF0000000000000000000000000000000000002, "https://agents.helix.finance/curve");
-        registry.registerAgent("celer-bridge-agent",    0xdEf0000000000000000000000000000000000003, "https://agents.helix.finance/celer");
+        registry.registerAgent("stargate-bridge-agent", 0xdEF0000000000000000000000000000000000001, "https://agents.helix.rohanm.in/stargate");
+        registry.registerAgent("curve-bridge-agent",     0xDEF0000000000000000000000000000000000002, "https://agents.helix.rohanm.in/curve");
+        registry.registerAgent("celer-bridge-agent",    0xdEf0000000000000000000000000000000000003, "https://agents.helix.rohanm.in/celer");
         console.log("      3 specialist agents registered");
 
         // 7. IntentStorage
