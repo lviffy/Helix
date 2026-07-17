@@ -42,6 +42,12 @@ export default function AgentMarketplace({ agents }: AgentMarketplaceProps) {
       <div className="divide-y divide-[#1c1c1e]">
         {agents.map((agent, index) => {
           const rank = index + 1;
+          // Normalize capabilities: Supabase REST may return JSONB as a string
+          const caps: string[] = Array.isArray(agent.capabilities)
+            ? agent.capabilities
+            : typeof agent.capabilities === 'string'
+            ? JSON.parse(agent.capabilities)
+            : [];
           return (
             <div
               key={agent.id}
@@ -63,13 +69,13 @@ export default function AgentMarketplace({ agents }: AgentMarketplaceProps) {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {agent.capabilities.slice(0, 3).map((cap) => (
+                  {caps.slice(0, 3).map((cap) => (
                     <span key={cap} className="text-[8px] font-mono px-1.5 py-0.5 border border-[#1c1c1e] text-[#71717a] uppercase">
                       {cap}
                     </span>
                   ))}
-                  {agent.capabilities.length > 3 && (
-                    <span className="text-[8px] font-mono text-[#52525b]">+{agent.capabilities.length - 3}</span>
+                  {caps.length > 3 && (
+                    <span className="text-[8px] font-mono text-[#52525b]">+{caps.length - 3}</span>
                   )}
                 </div>
               </div>
