@@ -1,23 +1,54 @@
-import { createWalletClient, createPublicClient, http, keccak256, toBytes, parseEther } from 'viem';
+import { createWalletClient, createPublicClient, http, keccak256, toBytes, parseEther, defineChain } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { localhost } from 'viem/chains';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-// Prefunded Anvil Account #0
-const PRIVATE_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-const account = privateKeyToAccount(PRIVATE_KEY);
-
-const walletClient = createWalletClient({
-  account,
-  chain: localhost,
-  transport: http(),
+// ─── X Layer Testnet chain definition ────────────────────────────────────────
+// Chain ID: 195 | Explorer: https://www.oklink.com/xlayer-test
+const xlayerTestnet = defineChain({
+  id: 195,
+  name: 'X Layer Testnet',
+  nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 },
+  rpcUrls: {
+    default: {
+      http: [process.env.XLAYER_TESTNET_RPC || 'https://testrpc.xlayer.tech'],
+    },
+  },
+  blockExplorers: {
+    default: { name: 'OKLink', url: 'https://www.oklink.com/xlayer-test' },
+  },
+  testnet: true,
 });
+
+// ─── Wallet setup ─────────────────────────────────────────────────────────────
+// Set DEPLOYER_PRIVATE_KEY in your .env (the wallet that deployed the contracts)
+const PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY as `0x${string}` | undefined;
+const SIMULATION_MODE = !PRIVATE_KEY;
+
+if (SIMULATION_MODE) {
+  console.warn('⚠️  DEPLOYER_PRIVATE_KEY not set — blockchain calls will return simulated tx hashes.');
+  console.warn('   Set it in apps/backend/.env to use X Layer Testnet for real.');
+}
+
+const account = PRIVATE_KEY ? privateKeyToAccount(PRIVATE_KEY) : undefined;
+
+const walletClient = account
+  ? createWalletClient({
+      account,
+      chain: xlayerTestnet,
+      transport: http(process.env.XLAYER_TESTNET_RPC || 'https://testrpc.xlayer.tech'),
+    })
+  : null;
 
 const publicClient = createPublicClient({
-  chain: localhost,
-  transport: http(),
+  chain: xlayerTestnet,
+  transport: http(process.env.XLAYER_TESTNET_RPC || 'https://testrpc.xlayer.tech'),
 });
+
+/** Returns a fake but formatted tx hash for simulation mode */
+function simulatedHash(): `0x${string}` {
+  return `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}` as `0x${string}`;
+}
 
 // Load contract addresses
 const ADDRESSES_PATH = join(__dirname, './addresses.json');
@@ -41,6 +72,7 @@ export function getTaskIdHash(taskId: string): `0x${string}` {
  * Score is normalized from 0-10000 basis points down to a 0-100 scale.
  */
 export async function getOnChainReputation(agentId: string): Promise<number> {
+  if (SIMULATION_MODE) return 90.0; // default when no key
   try {
     const data = await publicClient.readContract({
       address: addresses.reputation,
@@ -59,6 +91,7 @@ export async function getOnChainReputation(agentId: string): Promise<number> {
 
 /**
  * Create a new escrow lock on-chain for a task.
+ * On X Layer Testnet: produces a real tx verifiable on oklink.com/xlayer-test
  */
 export async function createOnChainEscrow(
   taskId: string,
@@ -66,9 +99,15 @@ export async function createOnChainEscrow(
   amountEth: string,
   timeoutSeconds: number = 3600
 ): Promise<`0x${string}`> {
+  if (SIMULATION_MODE || !walletClient) {
+    const hash = simulatedHash();
+    console.log(`🔵 [SIM] Escrow lock simulated for task ${taskId}. Hash: ${hash}`);
+    return hash;
+  }
+
   const taskIdHash = getTaskIdHash(taskId);
-  console.log(`⛓️ Blockchain: Locking ${amountEth} ETH in Escrow for task ${taskId}...`);
-  
+  console.log(`⛓️ X Layer Testnet: Locking ${amountEth} OKB in Escrow for task ${taskId}...`);
+
   const hash = await walletClient.writeContract({
     address: addresses.escrow,
     abi: escrowAbi,
@@ -78,16 +117,23 @@ export async function createOnChainEscrow(
   });
 
   await publicClient.waitForTransactionReceipt({ hash });
-  console.log(`⛓️ Blockchain: Escrow lock completed. Tx: ${hash}`);
+  console.log(`⛓️ Escrow locked ✅  Tx: ${hash}`);
+  console.log(`   🔗 https://www.oklink.com/xlayer-test/tx/${hash}`);
   return hash;
 }
 
 /**
- * Release the escrow lock to payout the agent and update reputation on-chain.
+ * Release the escrow lock — pays agent and updates on-chain reputation.
  */
 export async function releaseOnChainEscrow(taskId: string): Promise<`0x${string}`> {
+  if (SIMULATION_MODE || !walletClient) {
+    const hash = simulatedHash();
+    console.log(`🔵 [SIM] Escrow release simulated for task ${taskId}. Hash: ${hash}`);
+    return hash;
+  }
+
   const taskIdHash = getTaskIdHash(taskId);
-  console.log(`⛓️ Blockchain: Releasing Escrow for task ${taskId}...`);
+  console.log(`⛓️ X Layer Testnet: Releasing Escrow for task ${taskId}...`);
 
   const hash = await walletClient.writeContract({
     address: addresses.escrow,
@@ -97,16 +143,23 @@ export async function releaseOnChainEscrow(taskId: string): Promise<`0x${string}
   });
 
   await publicClient.waitForTransactionReceipt({ hash });
-  console.log(`⛓️ Blockchain: Escrow payout completed. Tx: ${hash}`);
+  console.log(`⛓️ Escrow released ✅  Tx: ${hash}`);
+  console.log(`   🔗 https://www.oklink.com/xlayer-test/tx/${hash}`);
   return hash;
 }
 
 /**
- * Refund the escrow lock on-chain due to failure and decrement agent reputation.
+ * Refund the escrow — slashes agent reputation on-chain.
  */
 export async function refundOnChainEscrow(taskId: string): Promise<`0x${string}`> {
+  if (SIMULATION_MODE || !walletClient) {
+    const hash = simulatedHash();
+    console.log(`🔵 [SIM] Escrow refund simulated for task ${taskId}. Hash: ${hash}`);
+    return hash;
+  }
+
   const taskIdHash = getTaskIdHash(taskId);
-  console.log(`⛓️ Blockchain: Refunding Escrow for task ${taskId}...`);
+  console.log(`⛓️ X Layer Testnet: Refunding Escrow for task ${taskId}...`);
 
   const hash = await walletClient.writeContract({
     address: addresses.escrow,
@@ -116,20 +169,27 @@ export async function refundOnChainEscrow(taskId: string): Promise<`0x${string}`
   });
 
   await publicClient.waitForTransactionReceipt({ hash });
-  console.log(`⛓️ Blockchain: Escrow refund completed. Tx: ${hash}`);
+  console.log(`⛓️ Escrow refunded ✅  Tx: ${hash}`);
+  console.log(`   🔗 https://www.oklink.com/xlayer-test/tx/${hash}`);
   return hash;
 }
 
 /**
- * Settle payment on-chain via the Settlement contract, splitting fees between agent and treasury.
+ * Settle payment on X Layer — splits between agent wallet and treasury.
  */
 export async function settleOnChainPayment(
   taskId: string,
   agentWallet: string,
   amountEth: string
 ): Promise<`0x${string}`> {
+  if (SIMULATION_MODE || !walletClient) {
+    const hash = simulatedHash();
+    console.log(`🔵 [SIM] Payment settlement simulated for task ${taskId}. Hash: ${hash}`);
+    return hash;
+  }
+
   const taskIdHash = getTaskIdHash(taskId);
-  console.log(`⛓️ Blockchain: Settling payment on-chain for task ${taskId}. Agent wallet: ${agentWallet}...`);
+  console.log(`⛓️ X Layer Testnet: Settling payment for task ${taskId}. Agent: ${agentWallet}...`);
 
   const hash = await walletClient.writeContract({
     address: addresses.settlement,
@@ -140,7 +200,8 @@ export async function settleOnChainPayment(
   });
 
   await publicClient.waitForTransactionReceipt({ hash });
-  console.log(`⛓️ Blockchain: On-chain payment settlement completed. Tx: ${hash}`);
+  console.log(`⛓️ Payment settled ✅  Tx: ${hash}`);
+  console.log(`   🔗 https://www.oklink.com/xlayer-test/tx/${hash}`);
   return hash;
 }
 
@@ -152,8 +213,14 @@ export async function registerOnChainAgent(
   agentWallet: string,
   endpoint: string
 ): Promise<`0x${string}`> {
-  console.log(`⛓️ Blockchain: Registering agent ${agentId} on-chain...`);
-  
+  if (SIMULATION_MODE || !walletClient) {
+    const hash = simulatedHash();
+    console.log(`🔵 [SIM] Agent registration simulated for ${agentId}. Hash: ${hash}`);
+    return hash;
+  }
+
+  console.log(`⛓️ X Layer Testnet: Registering agent ${agentId}...`);
+
   const hash = await walletClient.writeContract({
     address: addresses.agentRegistry,
     abi: registryAbi,
@@ -162,7 +229,8 @@ export async function registerOnChainAgent(
   });
 
   await publicClient.waitForTransactionReceipt({ hash });
-  console.log(`⛓️ Blockchain: On-chain agent registration completed. Tx: ${hash}`);
+  console.log(`⛓️ Agent registered ✅  Tx: ${hash}`);
+  console.log(`   🔗 https://www.oklink.com/xlayer-test/tx/${hash}`);
   return hash;
 }
 
@@ -175,8 +243,14 @@ export async function recordOnChainIntent(
   intentHash: `0x${string}`,
   status: string
 ): Promise<`0x${string}`> {
-  const intentIdHash = getTaskIdHash(intentId); // standard bytes32 hash of uuid
-  console.log(`⛓️ Blockchain: Recording intent ${intentId} on-chain in IntentStorage...`);
+  if (SIMULATION_MODE || !walletClient) {
+    const hash = simulatedHash();
+    console.log(`🔵 [SIM] Intent record simulated for ${intentId}. Hash: ${hash}`);
+    return hash;
+  }
+
+  const intentIdHash = getTaskIdHash(intentId);
+  console.log(`⛓️ X Layer Testnet: Recording intent ${intentId} in IntentStorage...`);
 
   const hash = await walletClient.writeContract({
     address: addresses.intentStorage,
@@ -186,6 +260,8 @@ export async function recordOnChainIntent(
   });
 
   await publicClient.waitForTransactionReceipt({ hash });
-  console.log(`⛓️ Blockchain: Intent successfully recorded on-chain. Tx: ${hash}`);
+  console.log(`⛓️ Intent recorded ✅  Tx: ${hash}`);
+  console.log(`   🔗 https://www.oklink.com/xlayer-test/tx/${hash}`);
   return hash;
 }
+

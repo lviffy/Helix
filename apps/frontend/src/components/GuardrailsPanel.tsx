@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, Activity } from 'lucide-react';
+import { API_BASE_URL } from '../lib/api';
 
 interface GuardrailsPanelProps {
   onTelemetryUpdated?: () => void;
@@ -14,7 +15,7 @@ export default function GuardrailsPanel({ onTelemetryUpdated, showNotification }
 
   const fetchTelemetry = async () => {
     try {
-      const res = await fetch('http://localhost:4000/api/telemetry');
+      const res = await fetch(`${API_BASE_URL}/api/telemetry`);
       if (res.ok) setTelemetry(await res.json());
     } catch { /* backend offline — silent */ }
   };
@@ -28,7 +29,7 @@ export default function GuardrailsPanel({ onTelemetryUpdated, showNotification }
   const handleSimulate = async (action: string, target: string, value: number) => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:4000/api/telemetry', {
+      const res = await fetch(`${API_BASE_URL}/api/telemetry`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, target, value }),

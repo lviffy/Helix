@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: helix-backend
+    runtime: docker
+    dockerFilePath: apps/backend/Dockerfile
+    env: docker
+    plan: free
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: helix-redis
+          property: connectionString
+
+redis:
+  - name: helix-redis
+    plan: free
+    ipAllowList: []

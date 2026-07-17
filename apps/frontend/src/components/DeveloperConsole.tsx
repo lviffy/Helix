@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Cpu, Wallet, Globe } from 'lucide-react';
+import { API_BASE_URL } from '../lib/api';
 
 interface DeveloperConsoleProps {
   onAgentRegistered?: () => void;
@@ -32,7 +33,7 @@ export default function DeveloperConsole({ onAgentRegistered, showNotification }
     }
     setIsSubmitting(true);
     try {
-      const res = await fetch('http://localhost:4000/api/agents', {
+      const res = await fetch(`${API_BASE_URL}/api/agents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, name, walletAddress, endpoint, capabilities }),

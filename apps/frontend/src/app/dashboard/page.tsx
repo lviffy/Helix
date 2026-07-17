@@ -12,6 +12,7 @@ import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import DeveloperConsole from '../../components/DeveloperConsole';
 import Link from 'next/link';
+import { API_BASE_URL } from '../../lib/api';
 
 export default function Dashboard() {
   const { address, isConnected } = useAccount();
@@ -103,14 +104,14 @@ export default function Dashboard() {
 
   const fetchAgents = async () => {
     try {
-      const res = await fetch('http://localhost:4000/api/agents', { headers: getAuthHeaders() });
+      const res = await fetch(`${API_BASE_URL}/api/agents`, { headers: getAuthHeaders() });
       if (res.ok) setAgents(await res.json());
     } catch (err) { console.error('Error fetching agents:', err); }
   };
 
   const fetchIntents = async () => {
     try {
-      const res = await fetch(`http://localhost:4000/api/intents?wallet=${wallet}`, { headers: getAuthHeaders() });
+      const res = await fetch(`${API_BASE_URL}/api/intents?wallet=${wallet}`, { headers: getAuthHeaders() });
       if (res.ok) setIntentsHistory(await res.json());
     } catch (err) { console.error('Error fetching intents:', err); }
   };
@@ -118,7 +119,7 @@ export default function Dashboard() {
   const handleSeedDatabase = async () => {
     setIsSeeding(true);
     try {
-      const res = await fetch('http://localhost:4000/api/seed', { method: 'POST', headers: getAuthHeaders() });
+      const res = await fetch(`${API_BASE_URL}/api/seed`, { method: 'POST', headers: getAuthHeaders() });
       if (res.ok) { showNotification('Database seeded successfully!', 'success'); fetchAgents(); }
     } catch (err) { console.error('Error seeding database:', err); }
     finally { setIsSeeding(false); }
@@ -129,7 +130,7 @@ export default function Dashboard() {
     setActiveResult(null);
     setActiveBlueprint(null);
     try {
-      const res = await fetch('http://localhost:4000/api/intents', {
+      const res = await fetch(`${API_BASE_URL}/api/intents`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ walletAddress: wallet, prompt, policies, dryRun: true }),
@@ -147,7 +148,7 @@ export default function Dashboard() {
     if (!activeBlueprint) return;
     setIsConfirming(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/intents/${activeBlueprint.intentId}/confirm`, {
+      const res = await fetch(`${API_BASE_URL}/api/intents/${activeBlueprint.intentId}/confirm`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ policies: { minProtocolRiskScore: overrideMinRisk, minTvlUsd: overrideMinTvl ? overrideMinTvl * 1000000 : undefined, maxSlippagePct: overrideMaxSlippage, maxGasPerTxUsd: overrideMaxGas } }),

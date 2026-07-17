@@ -1,8 +1,10 @@
 {
-  "reputation": "0xc6e7df5e7b4f2a278906862b61205850344d4e7d",
-  "agentRegistry": "0x59b670e9fa9d0a427751af201d676719a970857b",
-  "escrow": "0xa85233c63b9ee964add6f2cffe00fd84eb32338f",
-  "settlement": "0x4a679253410272dd5232b3ff7cf5dbb88f295319",
-  "treasury": "0x4ed7c70f96b99c776995fb64377f0d4ab3b0e1c1",
-  "intentStorage": "0x322813fd9a801c5507c9de605d63cea4f2ce6c44"
+  "_note": "Replace with real X Layer Testnet addresses after running: forge script script/Deploy.s.sol --rpc-url xlayer-testnet --private-key $DEPLOYER_PRIVATE_KEY --broadcast",
+  "_explorer": "https://www.oklink.com/xlayer-test",
+  "agentRegistry": "0x0000000000000000000000000000000000000000",
+  "reputation":    "0x0000000000000000000000000000000000000000",
+  "escrow":        "0x0000000000000000000000000000000000000000",
+  "treasury":      "0x0000000000000000000000000000000000000000",
+  "settlement":    "0x0000000000000000000000000000000000000000",
+  "intentStorage": "0x0000000000000000000000000000000000000000"
 }

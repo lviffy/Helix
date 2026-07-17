@@ -3,4 +3,9 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
+# X Layer Testnet (OKX) — Chain ID 195
+[rpc_endpoints]
+xlayer-testnet = "https://testrpc.xlayer.tech"
+anvil = "http://127.0.0.1:8545"
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md
