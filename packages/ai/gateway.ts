@@ -1,10 +1,77 @@
 import { ai, GEMINI_MODEL } from './client';
-import { type ZodType } from 'zod';
+import { type ZodType, type ZodTypeAny } from 'zod';
 
 export interface GenerateConfig<T> {
   prompt: string;
   systemInstruction?: string;
   schema?: ZodType<T>;
+}
+
+function zodToGeminiSchema(zodSchema: ZodTypeAny): any {
+  const def = zodSchema._def;
+  const description = def.description;
+
+  switch (def.typeName) {
+    case 'ZodString':
+      return { type: 'STRING', description };
+    case 'ZodNumber':
+      return { type: 'NUMBER', description };
+    case 'ZodBoolean':
+      return { type: 'BOOLEAN', description };
+    case 'ZodEnum':
+      return { type: 'STRING', enum: def.values, description };
+    case 'ZodArray':
+      return {
+        type: 'ARRAY',
+        items: zodToGeminiSchema(def.type),
+        description,
+      };
+    case 'ZodObject': {
+      const properties: Record<string, any> = {};
+      const required: string[] = [];
+      
+      for (const [key, value] of Object.entries(def.shape())) {
+        const propSchema = zodToGeminiSchema(value as ZodTypeAny);
+        if (propSchema) {
+          properties[key] = propSchema;
+          
+          let isOptional = false;
+          let currentDef = (value as any)._def;
+          
+          while (currentDef) {
+            if (
+              currentDef.typeName === 'ZodOptional' ||
+              currentDef.typeName === 'ZodNullable'
+            ) {
+              isOptional = true;
+              break;
+            }
+            if (currentDef.innerType) {
+              currentDef = currentDef.innerType._def;
+            } else {
+              break;
+            }
+          }
+          
+          if (!isOptional) {
+            required.push(key);
+          }
+        }
+      }
+      return {
+        type: 'OBJECT',
+        properties,
+        required: required.length > 0 ? required : undefined,
+        description,
+      };
+    }
+    case 'ZodOptional':
+    case 'ZodNullable':
+    case 'ZodDefault':
+      return zodToGeminiSchema(def.innerType);
+    default:
+      return { type: 'STRING', description };
+  }
 }
 
 // Separate helper for robust structured mock fallback response
@@ -260,6 +327,7 @@ export async function generateStructured<T>({
 
     if (schema) {
       config.responseMimeType = 'application/json';
+      config.responseSchema = zodToGeminiSchema(schema);
     }
 
     if (systemInstruction) {

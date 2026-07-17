@@ -95,7 +95,7 @@ onchainos agent profile 6197
 > You submit: "Maximize my 5000 USDC yield, safety first"
 >
 > Helix:
-> 1. Parses your intent with Gemini 2.5 Flash Lite 🧠
+> 1. Parses your intent with Gemini 2.5 Flash 🧠
 > 2. Generates a task DAG 📊
 > 3. Runs a reverse auction between specialist agents 🏆
 > 4. Locks escrow on X Layer 🔒
@@ -104,7 +104,7 @@ onchainos agent profile 6197
 **Tweet 4 — Tech Stack**
 > Built with:
 > - @OKX X Layer Testnet (escrow + settlement contracts)
-> - Gemini 2.5 Flash Lite (intent parser + explainability)
+> - Gemini 2.5 Flash (intent parser + explainability)
 > - Hono + Bun (backend API)
 > - Next.js 14 (dashboard)
 > - Drizzle + Postgres (audit trail)
@@ -131,13 +131,14 @@ onchainos agent profile 6197
 ---
 
 ## Checklist Before Submission
-- [ ] Add `GEMINI_API_KEY` to `apps/backend/.env`
-- [ ] Add Supabase keys to `apps/backend/.env` + `apps/frontend/.env`
-- [ ] Run `bun --filter database db:push` (push schema to Supabase Postgres)
-- [ ] Run `bun --filter database db:seed` (seed 6 mock agents)
-- [ ] Test `bun dev` — verify http://localhost:3000 and http://localhost:4000/health
-- [ ] Submit a test yield intent end-to-end
+- [x] Add `GEMINI_API_KEY` to `apps/backend/.env`
+- [x] Add Supabase keys to `apps/backend/.env` + `apps/frontend/.env`
+- [x] Run `bun --filter database db:push` (push schema to Supabase Postgres)
+- [x] Run `bun --filter database db:seed` (seed 6 mock agents)
+- [x] Test `bun dev` — verify http://localhost:3000 and http://localhost:4000/health
+- [x] Submit a test yield intent end-to-end
 - [ ] Record 90-second demo video
 - [ ] Register ASP on OKX OnchainOS (follow steps above)
 - [ ] Post X thread
 - [ ] Submit hackathon form before July 17, 23:59 UTC
+

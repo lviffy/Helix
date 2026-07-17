@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "main": "client.ts",
   "types": "types.ts",
+  "scripts": {
+    "db:push": "drizzle-kit push",
+    "db:seed": "bun run seed/index.ts"
+  },
   "dependencies": {
     "drizzle-orm": "^0.30.0",
     "postgres": "^3.4.4"
