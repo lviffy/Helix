@@ -4,7 +4,7 @@ import { injected } from 'wagmi/connectors';
 
 // Define X Layer Testnet Chain (OKX's Chain)
 export const xLayerTestnet = {
-  id: 195,
+  id: 1952,
   name: 'X Layer Testnet',
   nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 },
   rpcUrls: {

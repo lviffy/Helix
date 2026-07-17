@@ -1,10 +1,10 @@
 {
   "_note": "Replace with real X Layer Testnet addresses after running: forge script script/Deploy.s.sol --rpc-url xlayer-testnet --private-key $DEPLOYER_PRIVATE_KEY --broadcast",
   "_explorer": "https://www.oklink.com/xlayer-test",
-  "agentRegistry": "0x0000000000000000000000000000000000000000",
-  "reputation":    "0x0000000000000000000000000000000000000000",
-  "escrow":        "0x0000000000000000000000000000000000000000",
-  "treasury":      "0x0000000000000000000000000000000000000000",
-  "settlement":    "0x0000000000000000000000000000000000000000",
-  "intentStorage": "0x0000000000000000000000000000000000000000"
+  "agentRegistry": "0x5010410507804F4FE3D6b7Ec220BdDA0b10BD3C5",
+  "reputation":    "0x4DEA591068D6F486727a018A6f673d164c8ddD8e",
+  "escrow":        "0x80865dc58C8D2DED710bB34e050166f8427D6970",
+  "treasury":      "0xa5766fC95BB973B51bE53731Bb20256fe5cF8AC3",
+  "settlement":    "0x0EB30bC827b43CD578adf7b0AF03F8b3B3bB6DB0",
+  "intentStorage": "0x7feAb2Fe7DdB24556dD58da5C674cC188865534a"
 }

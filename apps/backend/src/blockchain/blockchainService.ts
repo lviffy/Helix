@@ -4,9 +4,9 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 // ─── X Layer Testnet chain definition ────────────────────────────────────────
-// Chain ID: 195 | Explorer: https://www.oklink.com/xlayer-test
+// Chain ID: 1952 | Explorer: https://www.oklink.com/xlayer-test
 const xlayerTestnet = defineChain({
-  id: 195,
+  id: 1952,
   name: 'X Layer Testnet',
   nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 },
   rpcUrls: {

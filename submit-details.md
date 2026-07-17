@@ -138,7 +138,7 @@ onchainos agent profile 6197
 - [x] Test `bun dev` — verify http://localhost:3000 and http://localhost:4000/health
 - [x] Submit a test yield intent end-to-end
 - [ ] Record 90-second demo video
-- [ ] Register ASP on OKX OnchainOS (follow steps above)
+- [x] Register ASP on OKX OnchainOS (Agent #6197 registered & under review on Mainnet)
 - [ ] Post X thread
 - [ ] Submit hackathon form before July 17, 23:59 UTC
 

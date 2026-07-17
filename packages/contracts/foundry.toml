@@ -2,6 +2,7 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+fs_permissions = [{ access = "read-write", path = "./" }]
 
 # X Layer Testnet (OKX) — Chain ID 195
 [rpc_endpoints]

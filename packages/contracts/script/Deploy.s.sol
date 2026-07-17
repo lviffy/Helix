@@ -7,6 +7,7 @@ import "../src/Reputation.sol";
 import "../src/Escrow.sol";
 import "../src/Settlement.sol";
 import "../src/Treasury.sol";
+import "../src/IntentStorage.sol";
 
 /**
  * @title Deploy
@@ -24,7 +25,7 @@ contract Deploy is Script {
         address deployer = vm.addr(deployerPrivateKey);
 
         console.log("===========================================");
-        console.log("  Helix Protocol — X Layer Testnet Deploy ");
+        console.log("  Helix Protocol - X Layer Testnet Deploy ");
         console.log("===========================================");
         console.log("Deployer:", deployer);
         console.log("Chain ID:", block.chainid);
@@ -56,10 +57,14 @@ contract Deploy is Script {
         console.log("[5/5] Settlement:", address(settlement));
 
         // Register 3 mock specialist agents
-        registry.registerAgent("stargate-bridge-agent", 0xDef0000000000000000000000000000000000001, "https://agents.helix.finance/stargate");
-        registry.registerAgent("curve-yield-agent",     0xDef0000000000000000000000000000000000002, "https://agents.helix.finance/curve");
-        registry.registerAgent("celer-bridge-agent",    0xDef0000000000000000000000000000000000003, "https://agents.helix.finance/celer");
+        registry.registerAgent("stargate-bridge-agent", 0xdEF0000000000000000000000000000000000001, "https://agents.helix.finance/stargate");
+        registry.registerAgent("curve-yield-agent",     0xDEF0000000000000000000000000000000000002, "https://agents.helix.finance/curve");
+        registry.registerAgent("celer-bridge-agent",    0xdEf0000000000000000000000000000000000003, "https://agents.helix.finance/celer");
         console.log("      3 specialist agents registered");
+
+        // 7. IntentStorage
+        IntentStorage intentStorage = new IntentStorage();
+        console.log("[6/6] IntentStorage:", address(intentStorage));
 
         vm.stopBroadcast();
 
@@ -70,6 +75,7 @@ contract Deploy is Script {
             '","escrow":"',       vm.toString(address(escrow)),
             '","treasury":"',     vm.toString(address(treasury)),
             '","settlement":"',   vm.toString(address(settlement)),
+            '","intentStorage":"', vm.toString(address(intentStorage)),
             '"}'
         ));
         vm.writeFile("script/deployed-addresses.json", json);
@@ -81,6 +87,7 @@ contract Deploy is Script {
         console.log("Escrow:       ", address(escrow));
         console.log("Treasury:     ", address(treasury));
         console.log("Settlement:   ", address(settlement));
+        console.log("IntentStorage:", address(intentStorage));
         console.log("Addresses -> script/deployed-addresses.json");
     }
 }
