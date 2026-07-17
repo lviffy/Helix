@@ -2,7 +2,12 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
 
-const connectionString = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/postgres';
+let connectionString = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/postgres';
+
+// Clean connectionString if someone accidentally copied the "DATABASE_URL=" prefix into the environment variable
+if (connectionString.startsWith('DATABASE_URL=')) {
+  connectionString = connectionString.substring('DATABASE_URL='.length);
+}
 
 // Log which host we're connecting to (without the password)
 const redacted = connectionString.replace(/:([^@]+)@/, ':***@');
