@@ -10,8 +10,8 @@ COPY packages/database/package.json ./packages/database/
 COPY packages/ai/package.json ./packages/ai/
 
 
-# Install workspace dependencies
-RUN bun install --frozen-lockfile
+RUN bun install
+
 
 # Copy the rest of the project source files
 COPY . .
