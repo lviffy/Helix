@@ -8,7 +8,7 @@ COPY package.json bun.lock ./
 COPY apps/backend/package.json ./apps/backend/
 COPY packages/database/package.json ./packages/database/
 COPY packages/ai/package.json ./packages/ai/
-COPY packages/contracts/package.json ./packages/contracts/
+
 
 # Install workspace dependencies
 RUN bun install --frozen-lockfile
