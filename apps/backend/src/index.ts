@@ -200,7 +200,7 @@ app.get('/api/intents/:id', async (c) => {
   }
 });
 
-// List all intents for a wallet — uses supabaseAdmin (HTTPS) to avoid TCP pooler issues
+// List all intents for a wallet — uses supabaseAdmin (HTTPS) to avoid TCP pooler issuess
 app.get('/api/intents', async (c) => {
   const wallet = c.req.query('wallet');
   try {
