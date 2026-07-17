@@ -9,6 +9,7 @@ import { redis } from './lib/redis';
 import { oracleService } from './lib/oracleService';
 import { mcpRouter } from './mcp/mcpServer';
 import { registerOnChainAgent, recordOnChainIntent } from './blockchain/blockchainService';
+import { supabaseAdmin } from './lib/supabase';
 import { keccak256, toBytes } from 'viem';
 
 const app = new Hono();
@@ -411,48 +412,40 @@ function checkIntentConditions(intent: any): boolean {
 }
 
 // Start recurring intents background scheduler
+// Uses supabaseAdmin (HTTPS) instead of direct Postgres to avoid TCP pooler issues
 setInterval(async () => {
   try {
+    if (!supabaseAdmin) return; // Skip if no service role key
     const now = new Date();
-    // Query active recurring intents where nextExecution <= now or is null
-    const pendingIntents = await db.select().from(intents).where(
-      and(
-        eq(intents.status, 'active'),
-        eq(intents.isRecurring, true),
-        or(
-          lte(intents.nextExecution, now),
-          isNull(intents.nextExecution)
-        )
-      )
-    );
 
-    for (const intent of pendingIntents) {
+    const { data: pendingIntents, error } = await supabaseAdmin
+      .from('intents')
+      .select('*')
+      .eq('status', 'active')
+      .eq('is_recurring', true)
+      .or(`next_execution.lte.${now.toISOString()},next_execution.is.null`);
+
+    if (error) {
+      console.error('⚠️ Scheduler DB error:', error.message);
+      return;
+    }
+
+    for (const intent of pendingIntents ?? []) {
       if (!checkIntentConditions(intent)) {
-        // Condition not met, check again in 5 seconds
-        const retryTime = new Date(Date.now() + 5000);
-        await db.update(intents).set({
-          nextExecution: retryTime,
-        }).where(eq(intents.id, intent.id));
+        const retryTime = new Date(Date.now() + 5000).toISOString();
+        await supabaseAdmin.from('intents').update({ next_execution: retryTime }).eq('id', intent.id);
         continue;
       }
 
       console.log(`⏱️ Scheduler: Running recurring intent ${intent.id}...`);
 
-      // Update next execution time (1 minute for standard, 15 seconds for guardrails)
       const isGuardrail = intent.type === 'defensive_guardrail';
-      const nextTime = new Date(Date.now() + (isGuardrail ? 15000 : 60000));
-      await db.update(intents).set({
-        nextExecution: nextTime,
-      }).where(eq(intents.id, intent.id));
+      const nextTime = new Date(Date.now() + (isGuardrail ? 15000 : 60000)).toISOString();
+      await supabaseAdmin.from('intents').update({ next_execution: nextTime }).eq('id', intent.id);
 
-      // Run execution asynchronously in background
       executeIntent(intent, intent.goal?.description || 'Recurring execution')
-        .then(() => {
-          console.log(`⏱️ Scheduler: Completed execution for intent ${intent.id}`);
-        })
-        .catch((err) => {
-          console.error(`⏱️ Scheduler: Failed execution for intent ${intent.id}:`, err);
-        });
+        .then(() => console.log(`⏱️ Scheduler: Completed execution for intent ${intent.id}`))
+        .catch((err: Error) => console.error(`⏱️ Scheduler: Failed execution for intent ${intent.id}:`, err));
     }
   } catch (err) {
     console.error('⚠️ Scheduler error:', err);
