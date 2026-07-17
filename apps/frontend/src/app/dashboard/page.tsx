@@ -42,32 +42,25 @@ export default function Dashboard() {
     setTimeout(() => setNotification(null), 5000);
   };
 
+  // Supabase session is used only for realtime DB subscriptions.
+  // The backend uses walletAddress as the real identity — no Supabase login required.
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return;
-    const initAuth = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        if (currentSession) {
-          setSession(currentSession);
-        } else {
-          const { data } = await supabase.auth.signInAnonymously();
-          if (data?.session) setSession(data.session);
-        }
-      } catch (err) {
-        console.error('Error initializing Supabase Auth:', err);
-      }
-    };
-    initAuth();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setSession(session);
     });
     return () => subscription.unsubscribe();
   }, []);
 
+
   useEffect(() => {
     fetchAgents();
     fetchIntents();
-  }, [wallet, session]);
+  }, [wallet]);
+
 
   useEffect(() => {
     if (activeBlueprint) {

@@ -74,8 +74,13 @@ app.post('/api/intents', async (c) => {
     const result = await processUserIntent(walletAddress, prompt, !!dryRun);
     return c.json(result);
   } catch (error: any) {
-    console.error('🔴 Intent execution error:', error);
-    return c.json({ error: error.message || 'Internal Server Error' }, 500);
+    console.error('🔴 Intent execution error:', error?.message);
+    console.error('🔴 Stack:', error?.stack);
+    console.error('🔴 Cause:', error?.cause);
+    return c.json({
+      error: error.message || 'Internal Server Error',
+      detail: process.env.NODE_ENV !== 'production' ? error?.stack : undefined,
+    }, 500);
   }
 });
 

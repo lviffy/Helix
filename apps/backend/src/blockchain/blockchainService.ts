@@ -52,15 +52,25 @@ function simulatedHash(): `0x${string}` {
 
 // Load contract addresses
 const ADDRESSES_PATH = join(__dirname, './addresses.json');
-const addresses = JSON.parse(readFileSync(ADDRESSES_PATH, 'utf8'));
+let addresses: Record<string, string> = {};
+try {
+  addresses = JSON.parse(readFileSync(ADDRESSES_PATH, 'utf8'));
+} catch (e) {
+  console.warn('⚠️  Could not load addresses.json — on-chain calls will be fully simulated:', (e as Error).message);
+}
 
 // Load ABIs
 const OUT_DIR = join(__dirname, '../../../../packages/contracts/out');
-const reputationAbi = JSON.parse(readFileSync(join(OUT_DIR, 'Reputation.abi'), 'utf8'));
-const escrowAbi = JSON.parse(readFileSync(join(OUT_DIR, 'Escrow.abi'), 'utf8'));
-const settlementAbi = JSON.parse(readFileSync(join(OUT_DIR, 'Settlement.abi'), 'utf8'));
-const registryAbi = JSON.parse(readFileSync(join(OUT_DIR, 'AgentRegistry.abi'), 'utf8'));
-const intentStorageAbi = JSON.parse(readFileSync(join(OUT_DIR, 'IntentStorage.abi'), 'utf8'));
+let reputationAbi: any[] = [], escrowAbi: any[] = [], settlementAbi: any[] = [], registryAbi: any[] = [], intentStorageAbi: any[] = [];
+try {
+  reputationAbi = JSON.parse(readFileSync(join(OUT_DIR, 'Reputation.abi'), 'utf8'));
+  escrowAbi = JSON.parse(readFileSync(join(OUT_DIR, 'Escrow.abi'), 'utf8'));
+  settlementAbi = JSON.parse(readFileSync(join(OUT_DIR, 'Settlement.abi'), 'utf8'));
+  registryAbi = JSON.parse(readFileSync(join(OUT_DIR, 'AgentRegistry.abi'), 'utf8'));
+  intentStorageAbi = JSON.parse(readFileSync(join(OUT_DIR, 'IntentStorage.abi'), 'utf8'));
+} catch (e) {
+  console.warn('⚠️  Could not load contract ABIs — on-chain calls will be fully simulated:', (e as Error).message);
+}
 
 export function getTaskIdHash(taskId: string): `0x${string}` {
   // If the taskId is already a valid UUID/hash, we can hash its bytes to get a clean bytes32
