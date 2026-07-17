@@ -200,13 +200,19 @@ app.get('/api/intents/:id', async (c) => {
   }
 });
 
-// List all intents for a wallet
+// List all intents for a wallet — uses supabaseAdmin (HTTPS) to avoid TCP pooler issues
 app.get('/api/intents', async (c) => {
   const wallet = c.req.query('wallet');
   try {
-    let query = db.select().from(intents).orderBy(desc(intents.createdAt));
+    if (supabaseAdmin) {
+      let q = supabaseAdmin.from('intents').select('*').order('created_at', { ascending: false });
+      if (wallet) q = q.eq('user_wallet', wallet);
+      const { data, error } = await q;
+      if (error) throw new Error(error.message);
+      return c.json(data ?? []);
+    }
+    // Fallback to Drizzle
     if (wallet) {
-      // Find intents by wallet
       const results = await db.query.intents.findMany({
         where: eq(intents.userWallet, wallet),
         orderBy: desc(intents.createdAt),
@@ -220,26 +226,30 @@ app.get('/api/intents', async (c) => {
   }
 });
 
-// List agents
+// List agents — uses supabaseAdmin (HTTPS) to avoid TCP pooler issues
 app.get('/api/agents', async (c) => {
   try {
-    const cachedAgents = await redis.get('agents:list').catch((err) => {
-      console.error('⚠️ Redis read error:', err);
-      return null;
-    });
-
+    const cachedAgents = await redis.get('agents:list').catch(() => null);
     if (cachedAgents) {
       console.log('⚡ Cache hit: agents list');
       return c.json(JSON.parse(cachedAgents));
     }
 
-    console.log('⚡ Cache miss: agents list');
-    const results = await db.select().from(agents).orderBy(desc(agents.reputationScore));
-    
-    await redis.setex('agents:list', 60, JSON.stringify(results)).catch((err) => {
-      console.error('⚠️ Redis write error:', err);
-    });
+    let results: any[];
+    if (supabaseAdmin) {
+      console.log('⚡ Cache miss: fetching agents via supabaseAdmin');
+      const { data, error } = await supabaseAdmin
+        .from('agents')
+        .select('*')
+        .order('reputation_score', { ascending: false });
+      if (error) throw new Error(error.message);
+      results = data ?? [];
+    } else {
+      console.log('⚡ Cache miss: fetching agents via Drizzle');
+      results = await db.select().from(agents).orderBy(desc(agents.reputationScore));
+    }
 
+    await redis.setex('agents:list', 60, JSON.stringify(results)).catch(() => {});
     return c.json(results);
   } catch (error: any) {
     return c.json({ error: error.message }, 500);
