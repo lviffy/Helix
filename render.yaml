@@ -16,6 +16,10 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      - key: DEPLOYER_PRIVATE_KEY
+        sync: false
+      - key: XLAYER_TESTNET_RPC
+        value: https://testrpc.xlayer.tech
       - key: REDIS_URL
         fromService:
           type: redis
