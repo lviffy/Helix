@@ -209,7 +209,7 @@ app.get('/api/intents', async (c) => {
       if (wallet) q = q.eq('user_wallet', wallet);
       const { data, error } = await q;
       if (error) throw new Error(error.message);
-      return c.json(data ?? []);
+      return c.json((data ?? []).map(normalizeIntent));
     }
     // Fallback to Drizzle
     if (wallet) {
@@ -224,6 +224,39 @@ app.get('/api/intents', async (c) => {
   } catch (error: any) {
     return c.json({ error: error.message }, 500);
   }
+});
+
+// Normalize Supabase REST snake_case response to match Drizzle camelCase output
+const normalizeAgent = (row: any) => ({
+  id: row.id,
+  walletAddress: row.wallet_address,
+  name: row.name,
+  capabilities: Array.isArray(row.capabilities)
+    ? row.capabilities
+    : typeof row.capabilities === 'string'
+    ? JSON.parse(row.capabilities)
+    : [],
+  endpoint: row.endpoint,
+  reputationScore: row.reputation_score,
+  successRatePct: row.success_rate_pct,
+  totalVolumeUsd: row.total_volume_usd,
+  active: row.active,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const normalizeIntent = (row: any) => ({
+  id: row.id,
+  userWallet: row.user_wallet,
+  type: row.type,
+  status: row.status,
+  goal: row.goal,
+  policies: row.policies,
+  isRecurring: row.is_recurring,
+  conditionalRules: row.conditional_rules,
+  nextExecution: row.next_execution,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
 });
 
 // List agents — uses supabaseAdmin (HTTPS) to avoid TCP pooler issues
@@ -243,7 +276,7 @@ app.get('/api/agents', async (c) => {
         .select('*')
         .order('reputation_score', { ascending: false });
       if (error) throw new Error(error.message);
-      results = data ?? [];
+      results = (data ?? []).map(normalizeAgent);
     } else {
       console.log('⚡ Cache miss: fetching agents via Drizzle');
       results = await db.select().from(agents).orderBy(desc(agents.reputationScore));
